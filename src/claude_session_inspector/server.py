@@ -33,18 +33,19 @@ def _format_timestamp(dt: datetime | None) -> str:
 
 def _format_sessions_table(sessions: list[SessionInfo]) -> str:
     """Format a list of sessions as a pipe-separated table."""
-    header = "session_id | project | branch | last_active | started | user_msgs | asst_msgs | first_prompt"
+    header = "session_id | project | branch | last_active | started | msgs | first_prompt"
     rows = [header]
     for s in sessions:
         branch = s.git_branch or "unknown"
         last_active = _format_timestamp(s.last_timestamp)
         started = _format_timestamp(s.first_timestamp)
+        msgs = s.user_message_count + s.assistant_message_count
         prompt = (s.first_prompt or "").replace("|", " ").replace("\n", " ").strip()
         if len(prompt) > 80:
             prompt = prompt[:80] + "..."
         rows.append(
             f"{s.session_id} | {s.project_name} | {branch} | {last_active} | {started}"
-            f" | {s.user_message_count} | {s.assistant_message_count} | {prompt}"
+            f" | {msgs} | {prompt}"
         )
     return "\n".join(rows)
 
