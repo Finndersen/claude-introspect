@@ -2,10 +2,17 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from claude_session_inspector.search import SearchMatch
-from claude_session_inspector.server import list_sessions, search_sessions, view_session_messages
+from claude_session_inspector.server import (
+    inspect_session,
+    list_sessions,
+    search_sessions,
+    view_session_messages,
+)
 from claude_session_inspector.sessions import AssistantMessage, SessionInfo, UserMessage
 
 
@@ -14,8 +21,12 @@ def mock_session(
     project_name: str = "TestProject",
     project_dir: str = "/path/to/project",
     first_prompt: str = "Help me implement a feature",
-    first_timestamp: datetime | None = datetime(2026, 5, 16, 9, 15, tzinfo=timezone.utc),
-    last_timestamp: datetime | None = datetime(2026, 5, 16, 10, 30, tzinfo=timezone.utc),
+    first_timestamp: datetime | None = datetime(
+        2026, 5, 16, 9, 15, tzinfo=timezone.utc
+    ),
+    last_timestamp: datetime | None = datetime(
+        2026, 5, 16, 10, 30, tzinfo=timezone.utc
+    ),
     git_branch: str | None = "main",
     cwd: str | None = "/path/to/project",
     user_count: int = 5,
@@ -54,7 +65,9 @@ def test_list_sessions_empty_with_filter():
 def test_list_sessions_single():
     """Test output with a single session."""
     session = mock_session(session_id="abc123")
-    with patch("claude_session_inspector.server.discover_sessions", return_value=[session]):
+    with patch(
+        "claude_session_inspector.server.discover_sessions", return_value=[session]
+    ):
         result = list_sessions()
         assert "Found 1 session" in result
         assert "Session: abc123" in result
@@ -72,7 +85,9 @@ def test_list_sessions_multiple():
         mock_session(session_id="bbb", project_name="Project2"),
         mock_session(session_id="ccc", project_name="Project3"),
     ]
-    with patch("claude_session_inspector.server.discover_sessions", return_value=sessions):
+    with patch(
+        "claude_session_inspector.server.discover_sessions", return_value=sessions
+    ):
         result = list_sessions()
         assert "Found 3 sessions" in result
         assert "Session: aaa" in result
@@ -83,20 +98,27 @@ def test_list_sessions_multiple():
 def test_list_sessions_plural_vs_singular():
     """Test correct singular/plural in count header."""
     # Single
-    with patch("claude_session_inspector.server.discover_sessions", return_value=[mock_session()]):
+    with patch(
+        "claude_session_inspector.server.discover_sessions",
+        return_value=[mock_session()],
+    ):
         result = list_sessions()
         assert "Found 1 session" in result
 
     # Multiple
     sessions = [mock_session(session_id=f"id{i}") for i in range(2)]
-    with patch("claude_session_inspector.server.discover_sessions", return_value=sessions):
+    with patch(
+        "claude_session_inspector.server.discover_sessions", return_value=sessions
+    ):
         result = list_sessions()
         assert "Found 2 sessions" in result
 
 
 def test_list_sessions_with_project_filter():
     """Test that project filter is passed to discover_sessions."""
-    with patch("claude_session_inspector.server.discover_sessions", return_value=[]) as mock_discover:
+    with patch(
+        "claude_session_inspector.server.discover_sessions", return_value=[]
+    ) as mock_discover:
         list_sessions(project="MyProject")
         mock_discover.assert_called_once_with(project_filter="MyProject")
 
@@ -104,7 +126,9 @@ def test_list_sessions_with_project_filter():
 def test_list_sessions_none_timestamps():
     """Test handling of None timestamps."""
     session = mock_session(first_timestamp=None, last_timestamp=None)
-    with patch("claude_session_inspector.server.discover_sessions", return_value=[session]):
+    with patch(
+        "claude_session_inspector.server.discover_sessions", return_value=[session]
+    ):
         result = list_sessions()
         assert "Last active: unknown" in result
         assert "Started: unknown" in result
@@ -113,7 +137,9 @@ def test_list_sessions_none_timestamps():
 def test_list_sessions_none_branch():
     """Test handling of None git_branch."""
     session = mock_session(git_branch=None)
-    with patch("claude_session_inspector.server.discover_sessions", return_value=[session]):
+    with patch(
+        "claude_session_inspector.server.discover_sessions", return_value=[session]
+    ):
         result = list_sessions()
         assert "Branch: unknown" in result
 
@@ -122,7 +148,9 @@ def test_list_sessions_none_cwd_fallback():
     """Test that None cwd falls back to the session file's parent directory."""
     session = mock_session(cwd=None)
     expected_dir = str(session.file_path.parent)
-    with patch("claude_session_inspector.server.discover_sessions", return_value=[session]):
+    with patch(
+        "claude_session_inspector.server.discover_sessions", return_value=[session]
+    ):
         result = list_sessions()
         assert f"Directory: {expected_dir}" in result
 
@@ -131,7 +159,9 @@ def test_list_sessions_first_prompt_rendered():
     """Test that first_prompt is rendered as-is from SessionInfo (truncation is sessions.py's responsibility)."""
     prompt = "x" * 200
     session = mock_session(first_prompt=prompt)
-    with patch("claude_session_inspector.server.discover_sessions", return_value=[session]):
+    with patch(
+        "claude_session_inspector.server.discover_sessions", return_value=[session]
+    ):
         result = list_sessions()
         assert "First prompt: " + "x" * 200 in result
 
@@ -139,7 +169,9 @@ def test_list_sessions_first_prompt_rendered():
 def test_list_sessions_all_fields_present():
     """Test that all expected fields are in the output."""
     session = mock_session()
-    with patch("claude_session_inspector.server.discover_sessions", return_value=[session]):
+    with patch(
+        "claude_session_inspector.server.discover_sessions", return_value=[session]
+    ):
         result = list_sessions()
         required_fields = [
             "Session:",
@@ -215,31 +247,36 @@ def test_search_sessions_multiple_results():
 def test_search_sessions_plural_vs_singular():
     """Test correct singular/plural in count header."""
     # Single
-    with patch("claude_session_inspector.server._search_sessions", return_value=[
-        SearchMatch("s", "P", 1, [], "")
-    ]):
+    with patch(
+        "claude_session_inspector.server._search_sessions",
+        return_value=[SearchMatch("s", "P", 1, [], "")],
+    ):
         result = search_sessions("test")
-        assert 'in 1 session' in result
+        assert "in 1 session" in result
 
     # Multiple
-    with patch("claude_session_inspector.server._search_sessions", return_value=[
-        SearchMatch("s1", "P", 1, [], ""),
-        SearchMatch("s2", "P", 1, [], ""),
-    ]):
+    with patch(
+        "claude_session_inspector.server._search_sessions",
+        return_value=[SearchMatch("s1", "P", 1, [], ""), SearchMatch("s2", "P", 1, [], "")],
+    ):
         result = search_sessions("test")
-        assert 'in 2 sessions' in result
+        assert "in 2 sessions" in result
 
 
 def test_search_sessions_with_project_filter():
     """Test that project filter is passed to _search_sessions."""
-    with patch("claude_session_inspector.server._search_sessions", return_value=[]) as mock_search:
+    with patch(
+        "claude_session_inspector.server._search_sessions", return_value=[]
+    ) as mock_search:
         search_sessions("test", project="MyProject")
         mock_search.assert_called_once_with("test", project="MyProject", max_results=10)
 
 
 def test_search_sessions_with_max_results():
     """Test that max_results parameter is passed."""
-    with patch("claude_session_inspector.server._search_sessions", return_value=[]) as mock_search:
+    with patch(
+        "claude_session_inspector.server._search_sessions", return_value=[]
+    ) as mock_search:
         search_sessions("test", max_results=20)
         mock_search.assert_called_once_with("test", project=None, max_results=20)
 
@@ -247,7 +284,9 @@ def test_search_sessions_with_max_results():
 def test_search_sessions_rg_not_found_error():
     """Test handling of RuntimeError from ripgrep not being installed."""
     with patch("claude_session_inspector.server._search_sessions") as mock_search:
-        mock_search.side_effect = RuntimeError("ripgrep (rg) is not installed. Please install ripgrep to use search_sessions.")
+        mock_search.side_effect = RuntimeError(
+            "ripgrep (rg) is not installed. Please install ripgrep to use search_sessions."
+        )
         result = search_sessions("test")
         assert "ripgrep (rg) is not installed" in result
 
@@ -579,3 +618,45 @@ def test_view_session_messages_git_branch_none_fallback():
 
         call_args = mock_format.call_args
         assert call_args[0][3] is None
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# inspect_session tests
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_inspect_session_delegates_to_impl():
+    """Test that the MCP tool delegates to inspect_session_impl with all args."""
+    with patch(
+        "claude_session_inspector.server.inspect_session_impl",
+        new=AsyncMock(return_value="summary text"),
+    ) as mock_impl:
+        result = await inspect_session("abc123", question="What happened?", max_messages=50)
+
+        assert result == "summary text"
+        mock_impl.assert_called_once_with("abc123", "What happened?", 50)
+
+
+@pytest.mark.asyncio
+async def test_inspect_session_default_args():
+    """Test that optional args use expected defaults when not provided."""
+    with patch(
+        "claude_session_inspector.server.inspect_session_impl",
+        new=AsyncMock(return_value="default summary"),
+    ) as mock_impl:
+        result = await inspect_session("abc123")
+
+        assert result == "default summary"
+        mock_impl.assert_called_once_with("abc123", None, 100)
+
+
+@pytest.mark.asyncio
+async def test_inspect_session_propagates_errors():
+    """Test that errors from impl propagate through the MCP wrapper."""
+    with patch(
+        "claude_session_inspector.server.inspect_session_impl",
+        new=AsyncMock(side_effect=FileNotFoundError("Session not found: abc123")),
+    ):
+        with pytest.raises(FileNotFoundError, match="Session not found"):
+            await inspect_session("abc123")

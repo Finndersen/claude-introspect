@@ -98,7 +98,11 @@ def parse_message(entry: dict, skip_sidechain: bool = True) -> SessionMessage | 
 
         text = _extract_text_from_content(content_raw)
         tool_results = (
-            [block for block in content_raw if isinstance(block, dict) and block.get("type") == "tool_result"]
+            [
+                block
+                for block in content_raw
+                if isinstance(block, dict) and block.get("type") == "tool_result"
+            ]
             if isinstance(content_raw, list)
             else []
         )
@@ -141,7 +145,9 @@ def parse_message(entry: dict, skip_sidechain: bool = True) -> SessionMessage | 
         )
 
 
-def load_session(session_file: Path, skip_sidechain: bool = True) -> list[SessionMessage]:
+def load_session(
+    session_file: Path, skip_sidechain: bool = True
+) -> list[SessionMessage]:
     """Load all messages from a session JSONL file, skipping malformed lines."""
     if not session_file.exists():
         raise FileNotFoundError(f"Session file not found: {session_file}")
@@ -168,7 +174,14 @@ def load_session(session_file: Path, skip_sidechain: bool = True) -> list[Sessio
 # ---------------------------------------------------------------------------
 
 
-_KNOWN_PARENT_DIRS = ["-projects-", "-worktrees-", "-repos-", "-src-", "-Documents-", "-code-"]
+_KNOWN_PARENT_DIRS = [
+    "-projects-",
+    "-worktrees-",
+    "-repos-",
+    "-src-",
+    "-Documents-",
+    "-code-",
+]
 
 
 def resolve_project_name(encoded_dir: str) -> str:

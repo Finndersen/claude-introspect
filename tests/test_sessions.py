@@ -118,11 +118,17 @@ def test_parse_message_user_string_content():
 
 
 def test_parse_message_user_list_content():
-    entry = {**USER_ENTRY, "message": {"role": "user", "content": [
-        {"type": "text", "text": "First line"},
-        {"type": "text", "text": "Second line"},
-        {"type": "tool_result", "tool_use_id": "t1", "content": "result"},
-    ]}}
+    entry = {
+        **USER_ENTRY,
+        "message": {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "First line"},
+                {"type": "text", "text": "Second line"},
+                {"type": "tool_result", "tool_use_id": "t1", "content": "result"},
+            ],
+        },
+    }
     msg = parse_message(entry)
     assert isinstance(msg, UserMessage)
     assert msg.text == "First line\nSecond line"
@@ -164,7 +170,9 @@ def test_parse_message_assistant():
         uuid="a-001",
         timestamp=datetime.fromisoformat("2024-06-01T10:00:05.000Z"),
         text="Hello! How can I help?",
-        tool_calls=[{"id": "tool-1", "name": "Read", "input": {"file_path": "/foo/bar.py"}}],
+        tool_calls=[
+            {"id": "tool-1", "name": "Read", "input": {"file_path": "/foo/bar.py"}}
+        ],
         model="claude-3-opus",
         is_sidechain=False,
     )
@@ -211,13 +219,13 @@ def test_load_session_mixed_lines(tmp_path: Path):
     entries = [
         USER_ENTRY,
         ASSISTANT_ENTRY,
-        {"type": "system", "subtype": "init"},           # filtered
-        {**USER_ENTRY, "uuid": "u-002", "isMeta": True}, # filtered
-        {"malformed json": True},                        # well-formed dict but no type
+        {"type": "system", "subtype": "init"},  # filtered
+        {**USER_ENTRY, "uuid": "u-002", "isMeta": True},  # filtered
+        {"malformed json": True},  # well-formed dict but no type
         USER_ENTRY | {"uuid": "u-003"},
     ]
     with session_file.open("w") as f:
-        f.write("not valid json\n")                      # malformed line
+        f.write("not valid json\n")  # malformed line
         for e in entries:
             f.write(json.dumps(e) + "\n")
 
@@ -253,9 +261,18 @@ def test_load_session_file_not_found(tmp_path: Path):
     "encoded, expected",
     [
         ("-Users-finn-andersen-projects-DevBoard", "DevBoard"),
-        ("-Users-finn-andersen-projects-claude-session-inspector", "claude-session-inspector"),
-        ("-Users-finn-andersen--devboard-worktrees-DevBoard-worktree-05c665c", "DevBoard-worktree-05c665c"),
-        ("-Users-finn-andersen--devboard-projects-claude-session-inspector-mcp", "claude-session-inspector-mcp"),
+        (
+            "-Users-finn-andersen-projects-claude-session-inspector",
+            "claude-session-inspector",
+        ),
+        (
+            "-Users-finn-andersen--devboard-worktrees-DevBoard-worktree-05c665c",
+            "DevBoard-worktree-05c665c",
+        ),
+        (
+            "-Users-finn-andersen--devboard-projects-claude-session-inspector-mcp",
+            "claude-session-inspector-mcp",
+        ),
         ("-Users-finn-andersen--devboard", "devboard"),
         ("-Users-finn-andersen-Documents", "Documents"),
     ],
@@ -342,7 +359,9 @@ def test_find_session_file_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert find_session_file("nonexistent") is None
 
 
-def test_find_session_file_no_sessions_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_find_session_file_no_sessions_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
     assert find_session_file("anything") is None
 
@@ -378,12 +397,20 @@ def test_discover_sessions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     assert sessions[1].session_id == "sess-a"
 
 
-def test_discover_sessions_project_filter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_discover_sessions_project_filter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     projects_dir = tmp_path / "projects"
     (projects_dir / "-Users-test-projects-Alpha").mkdir(parents=True)
     (projects_dir / "-Users-test-projects-Beta").mkdir(parents=True)
-    _write_jsonl(projects_dir / "-Users-test-projects-Alpha" / "s1.jsonl", [USER_ENTRY, ASSISTANT_ENTRY])
-    _write_jsonl(projects_dir / "-Users-test-projects-Beta" / "s2.jsonl", [USER_ENTRY, ASSISTANT_ENTRY])
+    _write_jsonl(
+        projects_dir / "-Users-test-projects-Alpha" / "s1.jsonl",
+        [USER_ENTRY, ASSISTANT_ENTRY],
+    )
+    _write_jsonl(
+        projects_dir / "-Users-test-projects-Beta" / "s2.jsonl",
+        [USER_ENTRY, ASSISTANT_ENTRY],
+    )
 
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
 
@@ -392,6 +419,8 @@ def test_discover_sessions_project_filter(tmp_path: Path, monkeypatch: pytest.Mo
     assert sessions[0].project_name == "Alpha"
 
 
-def test_discover_sessions_no_projects_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_discover_sessions_no_projects_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
     assert discover_sessions() == []

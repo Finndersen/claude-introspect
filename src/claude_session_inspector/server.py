@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from mcp.server.fastmcp import FastMCP
 
 from claude_session_inspector.formatting import format_conversation, format_single_message
+from claude_session_inspector.inspection import inspect_session as inspect_session_impl
 from claude_session_inspector.search import SearchMatch, search_sessions as _search_sessions
 from claude_session_inspector.sessions import (
     AssistantMessage,
@@ -190,6 +191,27 @@ def view_session_messages(
             include_tool_results=include_tool_results,
             user_only=user_only,
         )
+
+
+@mcp.tool()
+async def inspect_session(
+    session_id: str,
+    question: str | None = None,
+    max_messages: int = 100,
+) -> str:
+    """Ask a question about a Claude Code session, or get a summary.
+
+    Loads the session conversation, formats it, and sends it to Claude Haiku for analysis.
+
+    Args:
+        session_id: Session UUID to inspect.
+        question: Question to ask about the session. If omitted, provides a comprehensive summary.
+        max_messages: Maximum messages to include in context (default: 100, takes most recent).
+
+    Returns:
+        The LLM response as a string.
+    """
+    return await inspect_session_impl(session_id, question, max_messages)
 
 
 def main() -> None:
