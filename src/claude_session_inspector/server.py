@@ -1,14 +1,15 @@
 """MCP server for Claude Session Inspector."""
 
 from datetime import datetime, timezone
+from typing import Annotated
 
 from mcp.server.fastmcp import FastMCP
+from pydantic import Field
 
-from claude_session_inspector.formatting import format_conversation, format_single_message
+from claude_session_inspector.formatting import format_conversation
 from claude_session_inspector.inspection import inspect_session as inspect_session_impl
-from claude_session_inspector.search import SearchMatch, search_sessions as _search_sessions
+from claude_session_inspector.search import SearchMatch, search_sessions as _search_sessions_impl
 from claude_session_inspector.sessions import (
-    AssistantMessage,
     SessionInfo,
     UserMessage,
     discover_sessions,
@@ -17,7 +18,17 @@ from claude_session_inspector.sessions import (
     resolve_project_name,
 )
 
-mcp = FastMCP("claude-session-inspector")
+mcp = FastMCP(
+    "claude-session-inspector",
+    instructions=(
+        "Use these tools to see the user's work history across Claude Code projects, "
+        "retrieve context from prior sessions, or answer questions about past Claude Code conversations. "
+        "list_sessions discovers recent activity across all projects. "
+        "search_sessions finds sessions by keyword or topic. "
+        "view_session_messages reads the raw transcript of a session. "
+        "inspect_session uses AI to summarise or answer a specific question about a session."
+    ),
+)
 
 
 def _format_timestamp(dt: datetime | None) -> str:
@@ -41,8 +52,8 @@ def _format_sessions_table(sessions: list[SessionInfo]) -> str:
         started = _format_timestamp(s.first_timestamp)
         size_kb = round(s.file_size_bytes / 1024, 1)
         prompt = (s.first_prompt or "").replace("|", " ").replace("\n", " ").strip()
-        if len(prompt) > 80:
-            prompt = prompt[:80] + "..."
+        if len(prompt) > 300:
+            prompt = prompt[:300] + "..."
         rows.append(
             f"{s.session_id} | {s.project_name} | {branch} | {last_active} | {started}"
             f" | {size_kb} | {prompt}"
@@ -64,21 +75,30 @@ First prompt: {first_prompt}"""
 
 
 @mcp.tool()
-def list_sessions(project: str | None = None, max_results: int = 20) -> str:
-    """List recent Claude Code sessions to understand what the user has been working on.
+def list_sessions(
+    project: Annotated[
+        str | None,
+        Field(description="Project name filter (case-insensitive substring match)."),
+    ] = None,
+    max_results: Annotated[
+        int,
+        Field(
+            description=(
+                "Maximum sessions to return (default: 20). If the limit is reached there "
+                "may be more — narrow with project= or use search_sessions to find sessions "
+                "matching a specific topic."
+            )
+        ),
+    ] = 20,
+) -> str:
+    """Browse recent Claude Code sessions sorted by last activity.
 
-    Use this to get an overview of the user's recent activity across projects — for example,
-    when the user asks "what have I been working on lately?", when you need to find sessions
-    relevant to the current task, or when you want to discover other Claude agents that may
-    have made progress on related work. Results are sorted by most recent activity and include
-    the first prompt and message counts, giving a quick sense of what each session covered.
+    Use this whenever you need to discover what the user has been working on or survey recent
+    Claude agent activity across projects. Returns a table of sessions with metadata including
+    project, branch, timestamps, file size, and the opening prompt.
 
-    Args:
-        project: Optional project name filter (case-insensitive substring match).
-                 If omitted, lists all sessions across all projects.
-        max_results: Maximum number of sessions to return (default: 20). If the limit is
-                     reached there may be more sessions — use the project filter or
-                     search_sessions to narrow results.
+    To search session *content* for a specific keyword, function name, or error message, use
+    the search_sessions tool instead.
     """
     sessions, total = discover_sessions(project_filter=project, limit=max_results)
 
@@ -101,29 +121,47 @@ def list_sessions(project: str | None = None, max_results: int = 20) -> str:
 
 
 @mcp.tool()
-def search_sessions(query: str, project: str | None = None, max_results: int = 10) -> str:
-    """Search across all Claude Code sessions for a keyword or topic.
+def search_sessions(
+    query: Annotated[
+        str,
+        Field(
+            description=(
+                "String or pattern to search for across all session content. Use concrete "
+                "identifiers likely to appear verbatim — e.g. 'AuthMiddleware', 'migration 0042', "
+                "'TypeError: cannot read'. Treated as a fixed string by default (safe for natural "
+                "language, function names, error messages). Set use_regex=True for patterns."
+            )
+        ),
+    ],
+    project: Annotated[
+        str | None,
+        Field(description="Project name filter (case-insensitive substring match)."),
+    ] = None,
+    max_results: Annotated[
+        int,
+        Field(description="Maximum matching sessions to return (default: 20)."),
+    ] = 20,
+    use_regex: Annotated[
+        bool,
+        Field(
+            description=(
+                "If False (default), treat query as a fixed string. If True, enable Rust regex "
+                "syntax for patterns like `initializ(e|ation)` or case-insensitive flags (`(?i)search`)."
+            )
+        ),
+    ] = False,
+) -> str:
+    """Search Claude Code session content for a specific string or pattern using ripgrep.
 
-    Use this to find sessions relevant to a specific subject when you don't know which session
-    to look at — for example, to locate prior work on a feature, a bug fix, a file, a function
-    name, or a concept. This is the right starting point when the user asks "have I worked on X
-    before?", "did Claude do anything with Y?", or when you want to retrieve context from another
-    session before continuing related work. Searches raw session content with ripgrep, so query
-    terms should be concrete strings likely to appear in conversation text (e.g. function names,
-    file paths, error messages, library names). Returns matching sessions with snippets showing
-    where the query was found.
-
-    Requires ripgrep (rg) to be installed.
-
-    Args:
-        query: Search string (fixed string, not regex). Use specific identifiers or phrases
-               likely to appear verbatim in the session (e.g. "AuthMiddleware", "migration 0042",
-               "TypeError: cannot read").
-        project: Optional project name filter (case-insensitive substring match).
-        max_results: Maximum number of matching sessions to return (default: 10).
+    Use this to answer "have I worked on X before?" or to retrieve context from a prior session
+    before continuing related work. Returns matching sessions with snippets showing where the
+    query was found. Use list_sessions instead when you just want to browse recent activity
+    without a specific keyword in mind.
     """
     try:
-        matches = _search_sessions(query, project=project, max_results=max_results)
+        matches = _search_sessions_impl(
+            query, project=project, max_results=max_results, use_regex=use_regex
+        )
     except RuntimeError as err:
         return str(err)
 
@@ -140,38 +178,64 @@ def search_sessions(query: str, project: str | None = None, max_results: int = 1
     return header + separator + separator.join(blocks) + "\n" + "─" * 34
 
 
+_VALID_MESSAGE_TYPES = {"user", "assistant", "tool_calls", "tool_results"}
+
+
 @mcp.tool()
 def view_session_messages(
-    session_id: str,
-    mode: str = "all",
-    max_messages: int = 50,
-    include_tool_results: bool = False,
-    user_only: bool = False,
+    session_id: Annotated[str, Field(description="Session UUID (from list_sessions).")],
+    start_index: Annotated[
+        int | None,
+        Field(
+            description=(
+                "Start of message slice (0-based, negative ok: -1 = last message). "
+                "None = from beginning."
+            )
+        ),
+    ] = None,
+    end_index: Annotated[
+        int | None,
+        Field(
+            description="End of message slice (exclusive, negative ok). None = to end.",
+        ),
+    ] = None,
+    message_type: Annotated[
+        list[str] | None,
+        Field(
+            description=(
+                "Filter messages before slicing. Allowed values: 'user', 'assistant', "
+                "'tool_calls' (assistant messages with tool calls), "
+                "'tool_results' (user messages with tool results). "
+                "Multiple values = OR. None = no filter."
+            )
+        ),
+    ] = None,
+    max_tool_result_length: Annotated[
+        int,
+        Field(
+            description=(
+                "Max characters of tool result content to include per result (default: 200). "
+                "Set to 0 to omit content entirely — tool call indicators are always shown."
+            )
+        ),
+    ] = 200,
 ) -> str:
     """Read the conversation messages from a specific Claude Code session.
 
     Use this to retrieve the actual content of a session once you have its ID (from
-    list_sessions or search_sessions). Prefer this over inspect_session when you want
-    to read the raw conversation yourself rather than have it summarised — for example,
-    to understand exactly what instructions were given, what code was discussed, or what
-    decisions were made in a prior session. Use mode='first_prompt' or 'recent_prompt'
-    for a quick look at intent without loading the full conversation; use mode='all' to
-    read the full transcript and build context before continuing related work.
-
-    Args:
-        session_id: Session UUID (from list_sessions or search_sessions).
-        mode: 'all' — full conversation (default); 'first_prompt' — opening user message only;
-              'recent_prompt' — most recent user message only;
-              'latest_response' — most recent assistant response only.
-        max_messages: Max messages to include in 'all' mode (default: 50).
-        include_tool_results: Include tool result content in output (default: false).
-              Enable if you need to see command output, file contents, or API responses
-              from within the session.
-        user_only: Only show user messages, hiding assistant turns (default: false).
+    list_sessions). Supports Python-style index slicing (negative indices ok) and filtering
+    by message type. For example, start_index=-3 to get the last 3 messages, or
+    message_type=['user'] to see only user messages. Prefer inspect_session when you want
+    an AI summary rather than the raw transcript.
     """
-    valid_modes = ["first_prompt", "recent_prompt", "latest_response", "all"]
-    if mode not in valid_modes:
-        return f"Error: Invalid mode '{mode}'. Valid modes are: {', '.join(valid_modes)}"
+    if message_type is not None:
+        invalid = [t for t in message_type if t not in _VALID_MESSAGE_TYPES]
+        if invalid:
+            valid_list = ", ".join(sorted(_VALID_MESSAGE_TYPES))
+            return (
+                f"Error: Invalid message_type value(s): {', '.join(repr(t) for t in invalid)}. "
+                f"Valid values: {valid_list}"
+            )
 
     session_file = find_session_file(session_id)
     if session_file is None:
@@ -187,47 +251,36 @@ def view_session_messages(
 
     project_name = resolve_project_name(session_file.parent.name)
 
-    if mode == "first_prompt":
-        for msg in messages:
-            if isinstance(msg, UserMessage) and msg.text.strip():
-                return format_single_message(msg, session_id, project_name, "first_prompt")
-        return f"Session '{session_id}' has no user messages."
+    git_branch: str | None = None
+    for msg in messages:
+        if isinstance(msg, UserMessage) and msg.git_branch:
+            git_branch = msg.git_branch
+            break
 
-    elif mode == "recent_prompt":
-        for msg in reversed(messages):
-            if isinstance(msg, UserMessage) and msg.text.strip():
-                return format_single_message(msg, session_id, project_name, "recent_prompt")
-        return f"Session '{session_id}' has no user messages."
-
-    elif mode == "latest_response":
-        for msg in reversed(messages):
-            if isinstance(msg, AssistantMessage) and msg.text:
-                return format_single_message(msg, session_id, project_name, "latest_response")
-        return f"Session '{session_id}' has no assistant responses."
-
-    else:  # mode == "all"
-        git_branch: str | None = None
-        for msg in messages:
-            if isinstance(msg, UserMessage) and msg.git_branch:
-                git_branch = msg.git_branch
-                break
-
-        return format_conversation(
-            messages,
-            session_id,
-            project_name,
-            git_branch,
-            max_messages=max_messages,
-            include_tool_results=include_tool_results,
-            user_only=user_only,
-        )
+    return format_conversation(
+        messages,
+        session_id,
+        project_name,
+        git_branch,
+        start_index=start_index,
+        end_index=end_index,
+        message_type=message_type,
+        max_tool_result_length=max_tool_result_length,
+    )
 
 
 @mcp.tool()
 async def inspect_session(
-    session_id: str,
-    question: str | None = None,
-    max_messages: int = 100,
+    session_id: Annotated[str, Field(description="Session UUID (from list_sessions).")],
+    question: Annotated[
+        str | None,
+        Field(
+            description=(
+                "Question to ask about the session. If omitted, returns a comprehensive summary "
+                "covering topics discussed, decisions made, problems solved, and current status."
+            )
+        ),
+    ] = None,
 ) -> str:
     """Ask a natural-language question about a Claude Code session, or get an AI summary.
 
@@ -240,14 +293,8 @@ async def inspect_session(
     understanding of what happened or want to extract a specific piece of information efficiently.
 
     Requires the claude CLI to be installed and authenticated.
-
-    Args:
-        session_id: Session UUID (from list_sessions or search_sessions).
-        question: Question to ask about the session. If omitted, returns a comprehensive summary
-                  covering topics discussed, decisions made, problems solved, and current status.
-        max_messages: Maximum messages to include as context (default: 100, takes most recent).
     """
-    return await inspect_session_impl(session_id, question, max_messages)
+    return await inspect_session_impl(session_id, question)
 
 
 def main() -> None:

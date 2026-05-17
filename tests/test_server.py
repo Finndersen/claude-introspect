@@ -46,21 +46,21 @@ def mock_session(
     )
 
 
-def test_list_sessions_empty_no_filter():
+def test_sessions_browse_empty_no_filter():
     """Test empty results without filter."""
     with patch("claude_session_inspector.server.discover_sessions", return_value=([], 0)):
         result = list_sessions()
         assert result == "No sessions found."
 
 
-def test_list_sessions_empty_with_filter():
+def test_sessions_browse_empty_with_filter():
     """Test empty results with filter."""
     with patch("claude_session_inspector.server.discover_sessions", return_value=([], 0)):
         result = list_sessions(project="NonExistent")
         assert result == "No sessions found matching 'NonExistent'."
 
 
-def test_list_sessions_single():
+def test_sessions_browse_single():
     """Test output with a single session."""
     session = mock_session(session_id="abc123")
     with patch(
@@ -75,7 +75,7 @@ def test_list_sessions_single():
         assert "2026-05-16 09:15 UTC" in result
 
 
-def test_list_sessions_multiple():
+def test_sessions_browse_multiple():
     """Test output with multiple sessions."""
     sessions = [
         mock_session(session_id="aaa", project_name="Project1"),
@@ -92,7 +92,7 @@ def test_list_sessions_multiple():
         assert "ccc" in result
 
 
-def test_list_sessions_plural_vs_singular():
+def test_sessions_browse_plural_vs_singular():
     """Test header line shows correct counts."""
     with patch(
         "claude_session_inspector.server.discover_sessions",
@@ -109,7 +109,7 @@ def test_list_sessions_plural_vs_singular():
         assert "Showing 2 of 2 sessions" in result
 
 
-def test_list_sessions_with_project_filter():
+def test_sessions_browse_with_project_filter():
     """Test that project filter and limit are passed to discover_sessions."""
     with patch(
         "claude_session_inspector.server.discover_sessions", return_value=([], 0)
@@ -118,7 +118,7 @@ def test_list_sessions_with_project_filter():
         mock_discover.assert_called_once_with(project_filter="MyProject", limit=20)
 
 
-def test_list_sessions_none_timestamps():
+def test_sessions_browse_none_timestamps():
     """Test handling of None timestamps."""
     session = mock_session(first_timestamp=None, last_timestamp=None)
     with patch(
@@ -128,7 +128,7 @@ def test_list_sessions_none_timestamps():
         assert result.count("unknown") >= 2
 
 
-def test_list_sessions_none_branch():
+def test_sessions_browse_none_branch():
     """Test handling of None git_branch."""
     session = mock_session(git_branch=None)
     with patch(
@@ -138,19 +138,19 @@ def test_list_sessions_none_branch():
         assert "unknown" in result
 
 
-def test_list_sessions_first_prompt_truncated():
-    """Test that first_prompt longer than 80 chars is truncated in table output."""
-    prompt = "x" * 200
+def test_sessions_browse_first_prompt_truncated():
+    """Test that first_prompt longer than 300 chars is truncated in table output."""
+    prompt = "x" * 400
     session = mock_session(first_prompt=prompt)
     with patch(
         "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
     ):
         result = list_sessions()
-        assert "x" * 80 + "..." in result
-        assert "x" * 200 not in result
+        assert "x" * 300 + "..." in result
+        assert "x" * 400 not in result
 
 
-def test_list_sessions_table_columns():
+def test_sessions_browse_table_columns():
     """Test that table header contains expected columns."""
     session = mock_session()
     with patch(
@@ -171,14 +171,14 @@ def test_list_sessions_table_columns():
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def test_search_sessions_empty_results():
+def test_sessions_search_empty_results():
     """Test search with no matches."""
-    with patch("claude_session_inspector.server._search_sessions", return_value=[]):
+    with patch("claude_session_inspector.server._search_sessions_impl", return_value=[]):
         result = search_sessions("nonexistent")
         assert 'No matches found for "nonexistent"' in result
 
 
-def test_search_sessions_single_result():
+def test_sessions_search_single_result():
     """Test search with a single match."""
     match = SearchMatch(
         session_id="abc123",
@@ -187,7 +187,7 @@ def test_search_sessions_single_result():
         snippets=["first match", "second match"],
         first_prompt="Help me implement a feature",
     )
-    with patch("claude_session_inspector.server._search_sessions", return_value=[match]):
+    with patch("claude_session_inspector.server._search_sessions_impl", return_value=[match]):
         result = search_sessions("test")
         assert 'Found "test" in 1 session' in result
         assert "Session: abc123" in result
@@ -198,7 +198,7 @@ def test_search_sessions_single_result():
         assert "second match" in result
 
 
-def test_search_sessions_multiple_results():
+def test_sessions_search_multiple_results():
     """Test search with multiple matches."""
     matches = [
         SearchMatch(
@@ -216,53 +216,62 @@ def test_search_sessions_multiple_results():
             first_prompt="prompt2",
         ),
     ]
-    with patch("claude_session_inspector.server._search_sessions", return_value=matches):
+    with patch("claude_session_inspector.server._search_sessions_impl", return_value=matches):
         result = search_sessions("test")
         assert 'Found "test" in 2 sessions' in result
         assert "Session: session1" in result
         assert "Session: session2" in result
 
 
-def test_search_sessions_plural_vs_singular():
+def test_sessions_search_plural_vs_singular():
     """Test correct singular/plural in count header."""
-    # Single
     with patch(
-        "claude_session_inspector.server._search_sessions",
+        "claude_session_inspector.server._search_sessions_impl",
         return_value=[SearchMatch("s", "P", 1, [], "")],
     ):
         result = search_sessions("test")
         assert "in 1 session" in result
 
-    # Multiple
     with patch(
-        "claude_session_inspector.server._search_sessions",
+        "claude_session_inspector.server._search_sessions_impl",
         return_value=[SearchMatch("s1", "P", 1, [], ""), SearchMatch("s2", "P", 1, [], "")],
     ):
         result = search_sessions("test")
         assert "in 2 sessions" in result
 
 
-def test_search_sessions_with_project_filter():
-    """Test that project filter is passed to _search_sessions."""
+def test_sessions_search_with_project_filter():
+    """Test that project filter is passed to _search_sessions_impl."""
     with patch(
-        "claude_session_inspector.server._search_sessions", return_value=[]
+        "claude_session_inspector.server._search_sessions_impl", return_value=[]
     ) as mock_search:
         search_sessions("test", project="MyProject")
-        mock_search.assert_called_once_with("test", project="MyProject", max_results=10)
+        mock_search.assert_called_once_with("test", project="MyProject", max_results=20, use_regex=False)
 
 
-def test_search_sessions_with_max_results():
+def test_sessions_search_with_max_results():
     """Test that max_results parameter is passed."""
     with patch(
-        "claude_session_inspector.server._search_sessions", return_value=[]
+        "claude_session_inspector.server._search_sessions_impl", return_value=[]
     ) as mock_search:
-        search_sessions("test", max_results=20)
-        mock_search.assert_called_once_with("test", project=None, max_results=20)
+        search_sessions("test", max_results=5)
+        mock_search.assert_called_once_with("test", project=None, max_results=5, use_regex=False)
 
 
-def test_search_sessions_rg_not_found_error():
+def test_sessions_search_with_use_regex():
+    """Test that use_regex=True is passed through to the impl."""
+    with patch(
+        "claude_session_inspector.server._search_sessions_impl", return_value=[]
+    ) as mock_search:
+        search_sessions("initializ(e|ation)", use_regex=True)
+        mock_search.assert_called_once_with(
+            "initializ(e|ation)", project=None, max_results=20, use_regex=True
+        )
+
+
+def test_sessions_search_rg_not_found_error():
     """Test handling of RuntimeError from ripgrep not being installed."""
-    with patch("claude_session_inspector.server._search_sessions") as mock_search:
+    with patch("claude_session_inspector.server._search_sessions_impl") as mock_search:
         mock_search.side_effect = RuntimeError(
             "ripgrep (rg) is not installed. Please install ripgrep to use search_sessions."
         )
@@ -270,7 +279,7 @@ def test_search_sessions_rg_not_found_error():
         assert "ripgrep (rg) is not installed" in result
 
 
-def test_search_sessions_empty_first_prompt():
+def test_sessions_search_empty_first_prompt():
     """Test handling of empty first_prompt."""
     match = SearchMatch(
         session_id="s",
@@ -279,12 +288,12 @@ def test_search_sessions_empty_first_prompt():
         snippets=["match"],
         first_prompt="",
     )
-    with patch("claude_session_inspector.server._search_sessions", return_value=[match]):
+    with patch("claude_session_inspector.server._search_sessions_impl", return_value=[match]):
         result = search_sessions("test")
         assert "First prompt: (empty)" in result
 
 
-def test_search_sessions_all_fields_present():
+def test_sessions_search_all_fields_present():
     """Test that all expected fields are in the output."""
     match = SearchMatch(
         session_id="abc",
@@ -293,7 +302,7 @@ def test_search_sessions_all_fields_present():
         snippets=["snippet1", "snippet2"],
         first_prompt="Test prompt",
     )
-    with patch("claude_session_inspector.server._search_sessions", return_value=[match]):
+    with patch("claude_session_inspector.server._search_sessions_impl", return_value=[match]):
         result = search_sessions("query")
         required_fields = [
             "Session:",
@@ -348,85 +357,8 @@ def mock_assistant_message(
     )
 
 
-def test_view_session_messages_first_prompt():
-    """Test first_prompt mode returns first user message."""
-    messages = [
-        mock_user_message("First question", timestamp=datetime(2026, 5, 16, 9, 0, tzinfo=timezone.utc)),
-        mock_assistant_message(timestamp=datetime(2026, 5, 16, 9, 5, tzinfo=timezone.utc)),
-        mock_user_message("Second question", timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc)),
-    ]
-
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve:
-        mock_find.return_value = Path("/tmp/test-session.jsonl")
-        mock_load.return_value = messages
-        mock_resolve.return_value = "TestProject"
-
-        result = view_session_messages("test-session", mode="first_prompt")
-
-        assert "[USER]" in result
-        assert "First question" in result
-        assert "TestProject" in result
-        assert "first_prompt" in result
-        assert "Second question" not in result
-
-
-def test_view_session_messages_recent_prompt():
-    """Test recent_prompt mode returns most recent user message."""
-    messages = [
-        mock_user_message("First question", timestamp=datetime(2026, 5, 16, 9, 0, tzinfo=timezone.utc)),
-        mock_assistant_message(timestamp=datetime(2026, 5, 16, 9, 5, tzinfo=timezone.utc)),
-        mock_user_message("Recent question", timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc)),
-    ]
-
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve:
-        mock_find.return_value = Path("/tmp/test-session.jsonl")
-        mock_load.return_value = messages
-        mock_resolve.return_value = "TestProject"
-
-        result = view_session_messages("test-session", mode="recent_prompt")
-
-        assert "[USER]" in result
-        assert "Recent question" in result
-        assert "TestProject" in result
-        assert "recent_prompt" in result
-        assert "First question" not in result
-
-
-def test_view_session_messages_latest_response():
-    """Test latest_response mode returns most recent assistant message with text."""
-    messages = [
-        mock_user_message("First question", timestamp=datetime(2026, 5, 16, 9, 0, tzinfo=timezone.utc)),
-        mock_assistant_message(
-            "First response", timestamp=datetime(2026, 5, 16, 9, 5, tzinfo=timezone.utc)
-        ),
-        mock_user_message("Second question", timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc)),
-        mock_assistant_message(
-            "Latest response", timestamp=datetime(2026, 5, 16, 10, 5, tzinfo=timezone.utc)
-        ),
-    ]
-
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve:
-        mock_find.return_value = Path("/tmp/test-session.jsonl")
-        mock_load.return_value = messages
-        mock_resolve.return_value = "TestProject"
-
-        result = view_session_messages("test-session", mode="latest_response")
-
-        assert "[ASSISTANT]" in result
-        assert "Latest response" in result
-        assert "TestProject" in result
-        assert "latest_response" in result
-        assert "First response" not in result
-
-
-def test_view_session_messages_all_mode():
-    """Test all mode returns formatted conversation."""
+def test_view_session_messages_delegates_to_format_conversation():
+    """Test view_session_messages delegates to format_conversation with correct args."""
     messages = [
         mock_user_message("Hello", timestamp=datetime(2026, 5, 16, 9, 0, tzinfo=timezone.utc)),
         mock_assistant_message(timestamp=datetime(2026, 5, 16, 9, 5, tzinfo=timezone.utc)),
@@ -443,7 +375,7 @@ def test_view_session_messages_all_mode():
         mock_resolve.return_value = "TestProject"
         mock_format.return_value = "Formatted conversation"
 
-        result = view_session_messages("test-session", mode="all", max_messages=100, include_tool_results=True)
+        result = view_session_messages("test-session", max_tool_result_length=500)
 
         assert result == "Formatted conversation"
         mock_format.assert_called_once()
@@ -451,46 +383,10 @@ def test_view_session_messages_all_mode():
         assert call_args[0][0] == messages
         assert call_args[0][1] == "test-session"
         assert call_args[0][2] == "TestProject"
-        assert call_args[1]["max_messages"] == 100
-        assert call_args[1]["include_tool_results"] is True
-
-
-def test_view_session_messages_all_mode_with_user_only():
-    """Test all mode with user_only filter."""
-    messages = [
-        mock_user_message("User msg"),
-        mock_assistant_message("Assistant msg"),
-    ]
-
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve, patch(
-        "claude_session_inspector.server.format_conversation"
-    ) as mock_format:
-        mock_find.return_value = Path("/tmp/test-session.jsonl")
-        mock_load.return_value = messages
-        mock_resolve.return_value = "TestProject"
-        mock_format.return_value = "User-only conversation"
-
-        view_session_messages("test-session", mode="all", user_only=True)
-
-        call_args = mock_format.call_args
-        assert call_args[1]["user_only"] is True
-
-
-def test_view_session_messages_invalid_mode():
-    """Test invalid mode returns error message with valid modes listed."""
-    with patch("claude_session_inspector.server.find_session_file") as mock_find:
-        mock_find.return_value = Path("/tmp/test-session.jsonl")
-
-        result = view_session_messages("test-session", mode="invalid_mode")
-
-        assert "Error: Invalid mode" in result
-        assert "invalid_mode" in result
-        assert "first_prompt" in result
-        assert "recent_prompt" in result
-        assert "latest_response" in result
-        assert "all" in result
+        assert call_args[1]["max_tool_result_length"] == 500
+        assert call_args[1]["start_index"] is None
+        assert call_args[1]["end_index"] is None
+        assert call_args[1]["message_type"] is None
 
 
 def test_view_session_messages_session_not_found():
@@ -516,45 +412,8 @@ def test_view_session_messages_empty_session():
         assert "no messages" in result
 
 
-def test_view_session_messages_first_prompt_no_user_messages():
-    """Test first_prompt mode when there are no user messages."""
-    messages = [
-        mock_assistant_message("Only assistant message"),
-    ]
-
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve:
-        mock_find.return_value = Path("/tmp/test-session.jsonl")
-        mock_load.return_value = messages
-        mock_resolve.return_value = "TestProject"
-
-        result = view_session_messages("test-session", mode="first_prompt")
-
-        assert "no user messages" in result
-
-
-def test_view_session_messages_latest_response_no_assistant():
-    """Test latest_response mode when there are no assistant messages with text."""
-    messages = [
-        mock_user_message("User message"),
-        mock_assistant_message(""),  # Empty text
-    ]
-
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve:
-        mock_find.return_value = Path("/tmp/test-session.jsonl")
-        mock_load.return_value = messages
-        mock_resolve.return_value = "TestProject"
-
-        result = view_session_messages("test-session", mode="latest_response")
-
-        assert "no assistant responses" in result
-
-
 def test_view_session_messages_extracts_git_branch():
-    """Test that git_branch is extracted from first user message for all mode."""
+    """Test that git_branch is extracted from first user message."""
     messages = [
         mock_user_message("First", git_branch="feature-branch"),
         mock_assistant_message(),
@@ -570,14 +429,14 @@ def test_view_session_messages_extracts_git_branch():
         mock_resolve.return_value = "TestProject"
         mock_format.return_value = "Formatted"
 
-        view_session_messages("test-session", mode="all")
+        view_session_messages("test-session")
 
         call_args = mock_format.call_args
         assert call_args[0][3] == "feature-branch"
 
 
 def test_view_session_messages_git_branch_none_fallback():
-    """Test that None git_branch is handled in all mode."""
+    """Test that None git_branch is handled."""
     messages = [
         mock_user_message("First", git_branch=None),
         mock_assistant_message(),
@@ -593,10 +452,104 @@ def test_view_session_messages_git_branch_none_fallback():
         mock_resolve.return_value = "TestProject"
         mock_format.return_value = "Formatted"
 
-        view_session_messages("test-session", mode="all")
+        view_session_messages("test-session")
 
         call_args = mock_format.call_args
         assert call_args[0][3] is None
+
+
+def test_view_session_messages_start_end_index():
+    """Test that start_index and end_index are forwarded to format_conversation."""
+    messages = [mock_user_message("Msg"), mock_assistant_message()]
+
+    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
+        "claude_session_inspector.server.load_session"
+    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve, patch(
+        "claude_session_inspector.server.format_conversation"
+    ) as mock_format:
+        mock_find.return_value = Path("/tmp/test-session.jsonl")
+        mock_load.return_value = messages
+        mock_resolve.return_value = "TestProject"
+        mock_format.return_value = "Sliced"
+
+        view_session_messages("test-session", start_index=1, end_index=3)
+
+        call_args = mock_format.call_args
+        assert call_args[1]["start_index"] == 1
+        assert call_args[1]["end_index"] == 3
+
+
+def test_view_session_messages_negative_index():
+    """start_index=-1 returns only the last message."""
+    messages = [
+        mock_user_message("First", timestamp=datetime(2026, 5, 16, 9, 0, tzinfo=timezone.utc)),
+        mock_assistant_message(timestamp=datetime(2026, 5, 16, 9, 5, tzinfo=timezone.utc)),
+        mock_user_message("Last", timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc)),
+    ]
+
+    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
+        "claude_session_inspector.server.load_session"
+    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve:
+        mock_find.return_value = Path("/tmp/test-session.jsonl")
+        mock_load.return_value = messages
+        mock_resolve.return_value = "TestProject"
+
+        result = view_session_messages("test-session", start_index=-1)
+
+        assert "Last" in result
+        assert "First" not in result
+        assert "Message count: 1" in result
+
+
+def test_view_session_messages_message_type_filter():
+    """message_type=['user'] filters to user messages only."""
+    messages = [
+        mock_user_message("User prompt"),
+        mock_assistant_message("Assistant reply"),
+    ]
+
+    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
+        "claude_session_inspector.server.load_session"
+    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve:
+        mock_find.return_value = Path("/tmp/test-session.jsonl")
+        mock_load.return_value = messages
+        mock_resolve.return_value = "TestProject"
+
+        result = view_session_messages("test-session", message_type=["user"])
+
+        assert "User prompt" in result
+        assert "Assistant reply" not in result
+
+
+def test_view_session_messages_invalid_message_type():
+    """Invalid message_type value returns an error before touching the session."""
+    result = view_session_messages("test-session", message_type=["invalid_type"])
+
+    assert "Error" in result
+    assert "invalid_type" in result
+
+
+def test_view_session_messages_combined_slice_and_type():
+    """message_type filter is applied before start_index slice."""
+    messages = [
+        mock_user_message("U1", timestamp=datetime(2026, 5, 16, 9, 0, tzinfo=timezone.utc)),
+        mock_assistant_message("A1", timestamp=datetime(2026, 5, 16, 9, 5, tzinfo=timezone.utc)),
+        mock_user_message("U2", timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc)),
+    ]
+
+    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
+        "claude_session_inspector.server.load_session"
+    ) as mock_load, patch("claude_session_inspector.server.resolve_project_name") as mock_resolve:
+        mock_find.return_value = Path("/tmp/test-session.jsonl")
+        mock_load.return_value = messages
+        mock_resolve.return_value = "TestProject"
+
+        # Filter to user messages (U1, U2), then take last 1 → U2
+        result = view_session_messages("test-session", message_type=["user"], start_index=-1)
+
+        assert "U2" in result
+        assert "U1" not in result
+        assert "A1" not in result
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -611,10 +564,10 @@ async def test_inspect_session_delegates_to_impl():
         "claude_session_inspector.server.inspect_session_impl",
         new=AsyncMock(return_value="summary text"),
     ) as mock_impl:
-        result = await inspect_session("abc123", question="What happened?", max_messages=50)
+        result = await inspect_session("abc123", question="What happened?")
 
         assert result == "summary text"
-        mock_impl.assert_called_once_with("abc123", "What happened?", 50)
+        mock_impl.assert_called_once_with("abc123", "What happened?")
 
 
 @pytest.mark.asyncio
@@ -627,7 +580,7 @@ async def test_inspect_session_default_args():
         result = await inspect_session("abc123")
 
         assert result == "default summary"
-        mock_impl.assert_called_once_with("abc123", None, 100)
+        mock_impl.assert_called_once_with("abc123", None)
 
 
 @pytest.mark.asyncio
