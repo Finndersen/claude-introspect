@@ -100,9 +100,13 @@ def search_sessions(
 
         matches_by_file[file_path].append(match_text)
 
+    # Sort by match count descending and slice before opening any files.
+    ranked = sorted(matches_by_file.items(), key=lambda item: len(item[1]), reverse=True)
+    top_candidates = ranked[:max_results]
+
     search_results: list[SearchMatch] = []
 
-    for file_path_str, snippets in matches_by_file.items():
+    for file_path_str, snippets in top_candidates:
         file_path = Path(file_path_str)
 
         if not file_path.exists():
@@ -128,5 +132,4 @@ def search_sessions(
             )
         )
 
-    search_results.sort(key=lambda x: x.match_count, reverse=True)
-    return search_results[:max_results]
+    return search_results

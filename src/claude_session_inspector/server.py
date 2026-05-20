@@ -220,6 +220,8 @@ def search_sessions(
     before continuing related work. Returns matching sessions with snippets showing where the
     query was found. Use list_sessions instead when you just want to browse recent activity
     without a specific keyword in mind.
+
+    Searches tool calls too, so a file path as the query finds sessions that touched that file.
     """
     try:
         matches = _search_sessions_impl(query, project=project, max_results=max_results, use_regex=use_regex)

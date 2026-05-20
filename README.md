@@ -116,6 +116,8 @@ Full-text search across all session files using ripgrep. Returns matching sessio
 
 By default treats `query` as a fixed string — safe for function names, error messages, and natural language phrases. Set `use_regex=true` for patterns.
 
+The search covers tool calls, so passing a file path as the `query` finds sessions that touched that file.
+
 Requires `rg` (ripgrep).
 
 ---

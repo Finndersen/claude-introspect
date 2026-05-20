@@ -354,3 +354,53 @@ def test_search_sessions_empty_sessions_dir():
         with patch("pathlib.Path.exists", return_value=False):
             result = search_sessions("query")
             assert result == []
+
+
+def test_search_sessions_metadata_called_only_for_top_results():
+    """Metadata should be fetched for at most max_results files even when more match."""
+    from unittest.mock import Mock
+
+    from claude_session_inspector.sessions import SessionInfo
+
+    # 10 matching files with varying match counts
+    rg_lines = []
+    for i in range(10):
+        for _ in range(i + 1):
+            rg_lines.append(
+                json.dumps({"type": "match", "data": {"path": {"text": f"/path/s{i}.jsonl"}, "lines": {"text": "x"}}})
+            )
+    rg_output = "\n".join(rg_lines) + "\n"
+
+    def make_session_info(session_file: Path, project_dir: str) -> SessionInfo:
+        return SessionInfo(
+            session_id=session_file.stem,
+            project_dir=project_dir,
+            file_path=session_file,
+            first_prompt="",
+            first_timestamp=None,
+            last_timestamp=None,
+            git_branch=None,
+            cwd=None,
+            file_size_bytes=1024,
+            event_count=1,
+        )
+
+    with patch("subprocess.run") as mock_run:
+        with patch("claude_session_inspector.search.get_session_metadata", side_effect=make_session_info) as mock_meta:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = rg_output
+            mock_run.return_value.stderr = ""
+
+            with patch("pathlib.Path.exists", return_value=True):
+                result = search_sessions("query", max_results=3)
+
+    # Only the top 3 files by match count should have had metadata fetched
+    assert mock_meta.call_count == 3
+    assert len(result) == 3
+    # s9 has 10 matches, s8 has 9, s7 has 8 — highest match counts
+    assert result[0].session_id == "s9"
+    assert result[0].match_count == 10
+    assert result[1].session_id == "s8"
+    assert result[1].match_count == 9
+    assert result[2].session_id == "s7"
+    assert result[2].match_count == 8
