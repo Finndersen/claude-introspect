@@ -13,9 +13,27 @@ from claude_session_inspector.search import search_sessions
 def mock_rg_json_output():
     """Mock ripgrep JSON output with multiple matches in one file."""
     return (
-        json.dumps({"type": "match", "data": {"path": {"text": "/path/to/session1.jsonl"}, "lines": {"text": "test query in line 1"}}}) + "\n"
-        + json.dumps({"type": "match", "data": {"path": {"text": "/path/to/session1.jsonl"}, "lines": {"text": "another test query match"}}}) + "\n"
-        + json.dumps({"type": "match", "data": {"path": {"text": "/path/to/session2.jsonl"}, "lines": {"text": "test query appears here too"}}}) + "\n"
+        json.dumps(
+            {
+                "type": "match",
+                "data": {"path": {"text": "/path/to/session1.jsonl"}, "lines": {"text": "test query in line 1"}},
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "match",
+                "data": {"path": {"text": "/path/to/session1.jsonl"}, "lines": {"text": "another test query match"}},
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "match",
+                "data": {"path": {"text": "/path/to/session2.jsonl"}, "lines": {"text": "test query appears here too"}},
+            }
+        )
+        + "\n"
     )
 
 
@@ -71,8 +89,9 @@ def test_search_sessions_successful_search(mock_rg_json_output):
             mock_run.return_value.stdout = mock_rg_json_output
             mock_run.return_value.stderr = ""
 
-            from claude_session_inspector.sessions import SessionInfo
             from datetime import datetime, timezone
+
+            from claude_session_inspector.sessions import SessionInfo
 
             mock_metadata.side_effect = [
                 SessionInfo(
@@ -118,10 +137,14 @@ def test_search_sessions_sorted_by_match_count():
     with patch("subprocess.run") as mock_run:
         with patch("claude_session_inspector.search.get_session_metadata") as mock_metadata:
             rg_output = (
-                json.dumps({"type": "match", "data": {"path": {"text": "/path/a.jsonl"}, "lines": {"text": "match"}}}) + "\n"
-                + json.dumps({"type": "match", "data": {"path": {"text": "/path/b.jsonl"}, "lines": {"text": "match"}}}) + "\n"
-                + json.dumps({"type": "match", "data": {"path": {"text": "/path/b.jsonl"}, "lines": {"text": "match"}}}) + "\n"
-                + json.dumps({"type": "match", "data": {"path": {"text": "/path/b.jsonl"}, "lines": {"text": "match"}}}) + "\n"
+                json.dumps({"type": "match", "data": {"path": {"text": "/path/a.jsonl"}, "lines": {"text": "match"}}})
+                + "\n"
+                + json.dumps({"type": "match", "data": {"path": {"text": "/path/b.jsonl"}, "lines": {"text": "match"}}})
+                + "\n"
+                + json.dumps({"type": "match", "data": {"path": {"text": "/path/b.jsonl"}, "lines": {"text": "match"}}})
+                + "\n"
+                + json.dumps({"type": "match", "data": {"path": {"text": "/path/b.jsonl"}, "lines": {"text": "match"}}})
+                + "\n"
             )
 
             mock_run.return_value.returncode = 0
@@ -172,9 +195,15 @@ def test_search_sessions_snippet_truncation():
     long_snippet = "x" * 200
     with patch("subprocess.run") as mock_run:
         with patch("claude_session_inspector.search.get_session_metadata") as mock_metadata:
-            rg_output = json.dumps(
-                {"type": "match", "data": {"path": {"text": "/path/session.jsonl"}, "lines": {"text": long_snippet}}}
-            ) + "\n"
+            rg_output = (
+                json.dumps(
+                    {
+                        "type": "match",
+                        "data": {"path": {"text": "/path/session.jsonl"}, "lines": {"text": long_snippet}},
+                    }
+                )
+                + "\n"
+            )
 
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = rg_output
@@ -206,14 +235,20 @@ def test_search_sessions_max_results():
     """Test that results are limited to max_results."""
     with patch("subprocess.run") as mock_run:
         with patch("claude_session_inspector.search.get_session_metadata") as mock_metadata:
-            rg_output = "\n".join(
-                [
-                    json.dumps(
-                        {"type": "match", "data": {"path": {"text": f"/path/s{i}.jsonl"}, "lines": {"text": "match"}}}
-                    )
-                    for i in range(15)
-                ]
-            ) + "\n"
+            rg_output = (
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "type": "match",
+                                "data": {"path": {"text": f"/path/s{i}.jsonl"}, "lines": {"text": "match"}},
+                            }
+                        )
+                        for i in range(15)
+                    ]
+                )
+                + "\n"
+            )
 
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = rg_output
@@ -247,14 +282,20 @@ def test_search_sessions_max_snippets():
     """Test that at most 3 snippets per session are returned."""
     with patch("subprocess.run") as mock_run:
         with patch("claude_session_inspector.search.get_session_metadata") as mock_metadata:
-            rg_output = "\n".join(
-                [
-                    json.dumps(
-                        {"type": "match", "data": {"path": {"text": "/path/session.jsonl"}, "lines": {"text": f"match {i}"}}}
-                    )
-                    for i in range(10)
-                ]
-            ) + "\n"
+            rg_output = (
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "type": "match",
+                                "data": {"path": {"text": "/path/session.jsonl"}, "lines": {"text": f"match {i}"}},
+                            }
+                        )
+                        for i in range(10)
+                    ]
+                )
+                + "\n"
+            )
 
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = rg_output

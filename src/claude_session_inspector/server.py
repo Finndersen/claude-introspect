@@ -7,7 +7,8 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from claude_session_inspector.formatting import format_conversation
-from claude_session_inspector.search import SearchMatch, search_sessions as _search_sessions_impl
+from claude_session_inspector.search import SearchMatch
+from claude_session_inspector.search import search_sessions as _search_sessions_impl
 from claude_session_inspector.sessions import (
     ActiveInfo,
     SessionInfo,
@@ -81,7 +82,9 @@ def _format_active_sessions_table(sessions: list[SessionInfo]) -> str:
 
 def _format_historical_sessions_table(sessions: list[SessionInfo]) -> str:
     """Format historical (non-active) sessions as a pipe-separated table."""
-    header = "session_id | working_dir | branch | last_active | started | size_kb | events | first_prompt | session_summary"
+    header = (
+        "session_id | working_dir | branch | last_active | started | size_kb | events | first_prompt | session_summary"  # noqa: E501
+    )
     rows = [header]
     for s in sessions:
         working_dir, branch, last_active, started, size_kb, prompt, summary = _format_session_row_common(s)
@@ -162,9 +165,7 @@ def list_sessions(
         parts.append(_format_active_sessions_table(active_sessions))
 
     if historical_sessions:
-        parts.append(
-            f"\n## Recent sessions (showing {len(historical_sessions)} of {total_historical})"
-        )
+        parts.append(f"\n## Recent sessions (showing {len(historical_sessions)} of {total_historical})")
         parts.append(_format_historical_sessions_table(historical_sessions))
         if total_historical > max_results:
             parts.append(
@@ -221,9 +222,7 @@ def search_sessions(
     without a specific keyword in mind.
     """
     try:
-        matches = _search_sessions_impl(
-            query, project=project, max_results=max_results, use_regex=use_regex
-        )
+        matches = _search_sessions_impl(query, project=project, max_results=max_results, use_regex=use_regex)
     except RuntimeError as err:
         return str(err)
 
@@ -245,12 +244,7 @@ def view_session_messages(
     session_id: Annotated[str, Field(description="Session UUID (from list_sessions).")],
     start_index: Annotated[
         int | None,
-        Field(
-            description=(
-                "Start of message slice (0-based, negative ok: -1 = last message). "
-                "None = from beginning."
-            )
-        ),
+        Field(description=("Start of message slice (0-based, negative ok: -1 = last message). None = from beginning.")),
     ] = None,
     end_index: Annotated[
         int | None,

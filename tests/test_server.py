@@ -4,8 +4,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from claude_session_inspector.search import SearchMatch
 from claude_session_inspector.server import (
     list_sessions,
@@ -19,12 +17,8 @@ def mock_session(
     session_id: str = "abc123",
     project_dir: str = "-Users-test-projects-TestProject",
     first_prompt: str = "Help me implement a feature",
-    first_timestamp: datetime | None = datetime(
-        2026, 5, 16, 9, 15, tzinfo=timezone.utc
-    ),
-    last_timestamp: datetime | None = datetime(
-        2026, 5, 16, 10, 30, tzinfo=timezone.utc
-    ),
+    first_timestamp: datetime | None = datetime(2026, 5, 16, 9, 15, tzinfo=timezone.utc),
+    last_timestamp: datetime | None = datetime(2026, 5, 16, 10, 30, tzinfo=timezone.utc),
     git_branch: str | None = "main",
     cwd: str | None = "/path/to/project",
     file_size_bytes: int = 4096,
@@ -84,9 +78,7 @@ def test_sessions_browse_empty_with_filter():
 def test_sessions_browse_single():
     """Test output with a single historical session."""
     session = mock_session(session_id="abc123", cwd="/path/to/project")
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert "showing 1 of 1" in result
         assert "abc123" in result
@@ -103,9 +95,7 @@ def test_sessions_browse_multiple():
         mock_session(session_id="bbb", cwd="/projects/two"),
         mock_session(session_id="ccc", cwd="/projects/three"),
     ]
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=(sessions, 3)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=(sessions, 3)):
         result = list_sessions()
         assert "showing 3 of 3" in result
         assert "aaa" in result
@@ -123,18 +113,14 @@ def test_sessions_browse_plural_vs_singular():
         assert "showing 1 of 1" in result
 
     sessions = [mock_session(session_id=f"id{i}") for i in range(2)]
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=(sessions, 2)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=(sessions, 2)):
         result = list_sessions()
         assert "showing 2 of 2" in result
 
 
 def test_sessions_browse_with_project_filter():
     """Test that project filter and limit are passed to discover_sessions."""
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([], 0)
-    ) as mock_discover:
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([], 0)) as mock_discover:
         list_sessions(project="MyProject")
         mock_discover.assert_called_once_with(project_filter="MyProject", limit=20)
 
@@ -142,9 +128,7 @@ def test_sessions_browse_with_project_filter():
 def test_sessions_browse_none_timestamps():
     """Test handling of None timestamps."""
     session = mock_session(first_timestamp=None, last_timestamp=None)
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert result.count("unknown") >= 2
 
@@ -152,9 +136,7 @@ def test_sessions_browse_none_timestamps():
 def test_sessions_browse_none_branch():
     """Test handling of None git_branch."""
     session = mock_session(git_branch=None)
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert "unknown" in result
 
@@ -163,9 +145,7 @@ def test_sessions_browse_first_prompt_truncated():
     """Test that first_prompt longer than 300 chars is truncated in table output."""
     prompt = "x" * 400
     session = mock_session(first_prompt=prompt)
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert "x" * 300 + "..." in result
         assert "x" * 400 not in result
@@ -174,9 +154,7 @@ def test_sessions_browse_first_prompt_truncated():
 def test_sessions_browse_historical_table_columns():
     """Test that historical table header contains expected columns."""
     session = mock_session()
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert "session_id" in result
         assert "working_dir" in result
@@ -192,9 +170,7 @@ def test_sessions_browse_historical_table_columns():
 def test_sessions_browse_cwd_fallback_to_project_dir():
     """Test that encoded project_dir is used when cwd is None."""
     session = mock_session(cwd=None, project_dir="-Users-test-projects-Fallback")
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert "-Users-test-projects-Fallback" in result
 
@@ -202,9 +178,7 @@ def test_sessions_browse_cwd_fallback_to_project_dir():
 def test_sessions_browse_session_summary_shown():
     """Test that session_summary is shown in the table when present."""
     session = mock_session(session_summary="Working on auth refactor. Next: write tests.")
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert "Working on auth refactor" in result
 
@@ -212,9 +186,7 @@ def test_sessions_browse_session_summary_shown():
 def test_sessions_browse_session_summary_absent():
     """Test that missing session_summary produces an empty field, not an error."""
     session = mock_session(session_summary=None)
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert "session_summary" in result
 
@@ -222,9 +194,7 @@ def test_sessions_browse_session_summary_absent():
 def test_sessions_browse_includes_current_time():
     """Test that list_sessions output includes current time for context."""
     session = mock_session()
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert "Current time:" in result
 
@@ -252,9 +222,7 @@ def test_sessions_browse_active_section_shown():
 def test_sessions_browse_active_section_absent_when_no_active():
     """Active section is omitted entirely when there are no active sessions."""
     session = mock_session(session_id="hist-id")
-    with patch(
-        "claude_session_inspector.server.discover_sessions", return_value=([session], 1)
-    ):
+    with patch("claude_session_inspector.server.discover_sessions", return_value=([session], 1)):
         result = list_sessions()
         assert "## Active sessions" not in result
         assert "## Recent sessions" in result
@@ -398,31 +366,23 @@ def test_sessions_search_plural_vs_singular():
 
 def test_sessions_search_with_project_filter():
     """Test that project filter is passed to _search_sessions_impl."""
-    with patch(
-        "claude_session_inspector.server._search_sessions_impl", return_value=[]
-    ) as mock_search:
+    with patch("claude_session_inspector.server._search_sessions_impl", return_value=[]) as mock_search:
         search_sessions("test", project="MyProject")
         mock_search.assert_called_once_with("test", project="MyProject", max_results=20, use_regex=False)
 
 
 def test_sessions_search_with_max_results():
     """Test that max_results parameter is passed."""
-    with patch(
-        "claude_session_inspector.server._search_sessions_impl", return_value=[]
-    ) as mock_search:
+    with patch("claude_session_inspector.server._search_sessions_impl", return_value=[]) as mock_search:
         search_sessions("test", max_results=5)
         mock_search.assert_called_once_with("test", project=None, max_results=5, use_regex=False)
 
 
 def test_sessions_search_with_use_regex():
     """Test that use_regex=True is passed through to the impl."""
-    with patch(
-        "claude_session_inspector.server._search_sessions_impl", return_value=[]
-    ) as mock_search:
+    with patch("claude_session_inspector.server._search_sessions_impl", return_value=[]) as mock_search:
         search_sessions("initializ(e|ation)", use_regex=True)
-        mock_search.assert_called_once_with(
-            "initializ(e|ation)", project=None, max_results=20, use_regex=True
-        )
+        mock_search.assert_called_once_with("initializ(e|ation)", project=None, max_results=20, use_regex=True)
 
 
 def test_sessions_search_rg_not_found_error():
@@ -549,11 +509,11 @@ def test_view_session_messages_delegates_to_format_conversation():
         mock_user_message("Follow up", timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc)),
     ]
 
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch(
-        "claude_session_inspector.server.format_conversation"
-    ) as mock_format:
+    with (
+        patch("claude_session_inspector.server.find_session_file") as mock_find,
+        patch("claude_session_inspector.server.load_session") as mock_load,
+        patch("claude_session_inspector.server.format_conversation") as mock_format,
+    ):
         mock_find.return_value = Path("/tmp/test-session.jsonl")
         mock_load.return_value = messages
         mock_format.return_value = "Formatted conversation"
@@ -583,9 +543,10 @@ def test_view_session_messages_session_not_found():
 
 def test_view_session_messages_empty_session():
     """Test error when session has no messages."""
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load:
+    with (
+        patch("claude_session_inspector.server.find_session_file") as mock_find,
+        patch("claude_session_inspector.server.load_session") as mock_load,
+    ):
         mock_find.return_value = Path("/tmp/test-session.jsonl")
         mock_load.return_value = []
 
@@ -601,11 +562,11 @@ def test_view_session_messages_extracts_git_branch():
         mock_assistant_message(),
     ]
 
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch(
-        "claude_session_inspector.server.format_conversation"
-    ) as mock_format:
+    with (
+        patch("claude_session_inspector.server.find_session_file") as mock_find,
+        patch("claude_session_inspector.server.load_session") as mock_load,
+        patch("claude_session_inspector.server.format_conversation") as mock_format,
+    ):
         mock_find.return_value = Path("/tmp/test-session.jsonl")
         mock_load.return_value = messages
         mock_format.return_value = "Formatted"
@@ -623,11 +584,11 @@ def test_view_session_messages_git_branch_none_fallback():
         mock_assistant_message(),
     ]
 
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch(
-        "claude_session_inspector.server.format_conversation"
-    ) as mock_format:
+    with (
+        patch("claude_session_inspector.server.find_session_file") as mock_find,
+        patch("claude_session_inspector.server.load_session") as mock_load,
+        patch("claude_session_inspector.server.format_conversation") as mock_format,
+    ):
         mock_find.return_value = Path("/tmp/test-session.jsonl")
         mock_load.return_value = messages
         mock_format.return_value = "Formatted"
@@ -642,11 +603,11 @@ def test_view_session_messages_start_end_index():
     """Test that start_index and end_index are forwarded to format_conversation."""
     messages = [mock_user_message("Msg"), mock_assistant_message()]
 
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load, patch(
-        "claude_session_inspector.server.format_conversation"
-    ) as mock_format:
+    with (
+        patch("claude_session_inspector.server.find_session_file") as mock_find,
+        patch("claude_session_inspector.server.load_session") as mock_load,
+        patch("claude_session_inspector.server.format_conversation") as mock_format,
+    ):
         mock_find.return_value = Path("/tmp/test-session.jsonl")
         mock_load.return_value = messages
         mock_format.return_value = "Sliced"
@@ -666,9 +627,10 @@ def test_view_session_messages_negative_index():
         mock_user_message("Last", timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc)),
     ]
 
-    with patch("claude_session_inspector.server.find_session_file") as mock_find, patch(
-        "claude_session_inspector.server.load_session"
-    ) as mock_load:
+    with (
+        patch("claude_session_inspector.server.find_session_file") as mock_find,
+        patch("claude_session_inspector.server.load_session") as mock_load,
+    ):
         mock_find.return_value = Path("/tmp/test-session.jsonl")
         mock_load.return_value = messages
 

@@ -1,0 +1,21 @@
+#!/bin/sh
+# Check that the version was bumped when functional files change.
+# Install: git config core.hooksPath .githooks
+
+FUNCTIONAL_PATTERNS="src/claude_session_inspector/ agents/"
+VERSION_FILES="pyproject.toml .claude-plugin/plugin.json"
+
+staged_functional=$(git diff --cached --name-only | grep -E "^(src/claude_session_inspector/|agents/)")
+staged_version=$(git diff --cached --name-only | grep -E "^(pyproject\.toml|\.claude-plugin/plugin\.json)")
+
+if [ -n "$staged_functional" ] && [ -z "$staged_version" ]; then
+    echo "⚠️  Version not bumped — functional files changed:"
+    echo "$staged_functional" | sed 's/^/  /'
+    echo ""
+    echo "Run: python bump_version.py [major|minor|patch]"
+    echo "Then stage the version files and recommit."
+    echo "(Skip with: git commit --no-verify)"
+    exit 1
+fi
+
+exit 0

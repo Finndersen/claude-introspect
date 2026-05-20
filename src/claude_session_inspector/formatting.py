@@ -61,22 +61,10 @@ No messages to display."""
     slice_note = ""
     if start_index is not None or end_index is not None:
         actual_start = (
-            0
-            if start_index is None
-            else (
-                max(0, total + start_index)
-                if start_index < 0
-                else min(start_index, total)
-            )
+            0 if start_index is None else (max(0, total + start_index) if start_index < 0 else min(start_index, total))
         )
         actual_end = (
-            total
-            if end_index is None
-            else (
-                max(0, total + end_index)
-                if end_index < 0
-                else min(end_index, total)
-            )
+            total if end_index is None else (max(0, total + end_index) if end_index < 0 else min(end_index, total))
         )
         slice_note = f"\n[Note: Showing messages {actual_start}–{actual_end} of {total}]"
 

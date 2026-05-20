@@ -9,7 +9,6 @@ import pytest
 from claude_session_inspector.sessions import (
     ActiveInfo,
     AssistantMessage,
-    SessionInfo,
     UserMessage,
     _load_active_sessions,
     _normalize_path_filter,
@@ -198,9 +197,7 @@ def test_parse_message_assistant():
         uuid="a-001",
         timestamp=datetime.fromisoformat("2024-06-01T10:00:05.000Z"),
         text="Hello! How can I help?",
-        tool_calls=[
-            {"id": "tool-1", "name": "Read", "input": {"file_path": "/foo/bar.py"}}
-        ],
+        tool_calls=[{"id": "tool-1", "name": "Read", "input": {"file_path": "/foo/bar.py"}}],
         model="claude-3-opus",
         is_sidechain=False,
     )
@@ -417,9 +414,7 @@ def test_find_session_file_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert find_session_file("nonexistent") is None
 
 
-def test_find_session_file_no_sessions_dir(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_find_session_file_no_sessions_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
     assert find_session_file("anything") is None
 
@@ -456,9 +451,7 @@ def test_discover_sessions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     assert sessions[1].session_id == "sess-a"
 
 
-def test_discover_sessions_project_filter(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_project_filter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     projects_dir = tmp_path / "projects"
     (projects_dir / "-Users-test-projects-Alpha").mkdir(parents=True)
     (projects_dir / "-Users-test-projects-Beta").mkdir(parents=True)
@@ -479,9 +472,7 @@ def test_discover_sessions_project_filter(
     assert sessions[0].project_dir == "-Users-test-projects-Alpha"
 
 
-def test_discover_sessions_project_filter_full_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_project_filter_full_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Full working directory path should work as a filter."""
     projects_dir = tmp_path / "projects"
     (projects_dir / "-Users-test-projects-Alpha").mkdir(parents=True)
@@ -502,18 +493,14 @@ def test_discover_sessions_project_filter_full_path(
     assert sessions[0].project_dir == "-Users-test-projects-Alpha"
 
 
-def test_discover_sessions_no_projects_dir(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_no_projects_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
     sessions, total = discover_sessions()
     assert sessions == []
     assert total == 0
 
 
-def test_discover_sessions_includes_session_summary(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_includes_session_summary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Sessions with an away_summary entry should expose it as session_summary."""
     projects_dir = tmp_path / "projects"
     proj = projects_dir / "-Users-test-projects-MyProj"
@@ -551,9 +538,7 @@ def _write_active_json(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data))
 
 
-def test_load_active_sessions_reads_and_parses(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_load_active_sessions_reads_and_parses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
     _write_active_json(sessions_dir / "12345.json", ACTIVE_SESSION_JSON)
@@ -572,9 +557,7 @@ def test_load_active_sessions_reads_and_parses(
     assert result["aaa-session-id"] == expected
 
 
-def test_load_active_sessions_skips_malformed_files(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_load_active_sessions_skips_malformed_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
     (sessions_dir / "bad.json").write_text("not json {{{")
@@ -587,9 +570,7 @@ def test_load_active_sessions_skips_malformed_files(
     assert list(result.keys()) == ["aaa-session-id"]
 
 
-def test_load_active_sessions_applies_project_filter(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_load_active_sessions_applies_project_filter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
     _write_active_json(sessions_dir / "12345.json", ACTIVE_SESSION_JSON)
@@ -602,9 +583,7 @@ def test_load_active_sessions_applies_project_filter(
     assert list(result.keys()) == ["aaa-session-id"]
 
 
-def test_load_active_sessions_project_filter_case_insensitive(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_load_active_sessions_project_filter_case_insensitive(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
     _write_active_json(sessions_dir / "12345.json", ACTIVE_SESSION_JSON)
@@ -615,9 +594,7 @@ def test_load_active_sessions_project_filter_case_insensitive(
     assert "aaa-session-id" in result
 
 
-def test_load_active_sessions_includes_waiting_for(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_load_active_sessions_includes_waiting_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
     data = {**ACTIVE_SESSION_JSON, "status": "waiting", "waitingFor": "approve ExitPlanMode"}
@@ -630,9 +607,7 @@ def test_load_active_sessions_includes_waiting_for(
     assert result["aaa-session-id"].status == "waiting"
 
 
-def test_load_active_sessions_no_directory(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_load_active_sessions_no_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
     result = _load_active_sessions()
     assert result == {}
@@ -643,9 +618,7 @@ def test_load_active_sessions_no_directory(
 # ---------------------------------------------------------------------------
 
 
-def test_discover_sessions_always_includes_active(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_always_includes_active(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Active sessions appear even when they fall outside the limit."""
     projects_dir = tmp_path / "projects"
     sessions_dir = tmp_path / "sessions"
@@ -670,9 +643,7 @@ def test_discover_sessions_always_includes_active(
     assert total_historical == 3  # the 3 historical ones, not the active one
 
 
-def test_discover_sessions_active_without_jsonl_skipped(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_active_without_jsonl_skipped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Active sessions with no JSONL file on disk are not synthesized."""
     sessions_dir = tmp_path / "sessions"
     sessions_dir.mkdir()
@@ -687,9 +658,7 @@ def test_discover_sessions_active_without_jsonl_skipped(
     assert sessions == []
 
 
-def test_discover_sessions_active_field_populated(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_active_field_populated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """SessionInfo.active is populated for active sessions, None for historical."""
     projects_dir = tmp_path / "projects"
     sessions_dir = tmp_path / "sessions"
@@ -714,9 +683,7 @@ def test_discover_sessions_active_field_populated(
     assert by_id["hist-sess"].active is None
 
 
-def test_discover_sessions_total_historical_excludes_active(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_total_historical_excludes_active(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """total_historical count does not include active sessions."""
     projects_dir = tmp_path / "projects"
     sessions_dir = tmp_path / "sessions"
@@ -737,9 +704,7 @@ def test_discover_sessions_total_historical_excludes_active(
     assert total_historical == 5
 
 
-def test_discover_sessions_extracts_cwd_from_command_only_session(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_extracts_cwd_from_command_only_session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """cwd and gitBranch are pulled from meta/command entries when no real prompt exists.
 
     Reproduces the case of a freshly-/cleared session that only has meta + command entries
@@ -751,8 +716,12 @@ def test_discover_sessions_extracts_cwd_from_command_only_session(
     proj.mkdir(parents=True)
     sessions_dir.mkdir()
 
-    meta_entry = {**USER_ENTRY, "uuid": "u-meta", "isMeta": True,
-                  "message": {"role": "user", "content": "<local-command-caveat>caveat</local-command-caveat>"}}
+    meta_entry = {
+        **USER_ENTRY,
+        "uuid": "u-meta",
+        "isMeta": True,
+        "message": {"role": "user", "content": "<local-command-caveat>caveat</local-command-caveat>"},
+    }
     _write_jsonl(proj / "active-sess.jsonl", [meta_entry, COMMAND_ENTRY])
 
     active_data = {**ACTIVE_SESSION_JSON, "sessionId": "active-sess", "pid": 77}
@@ -767,9 +736,7 @@ def test_discover_sessions_extracts_cwd_from_command_only_session(
     assert sessions[0].first_prompt == ""
 
 
-def test_discover_sessions_excludes_empty_historical(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_excludes_empty_historical(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Historical sessions with no first_prompt and no session_summary are dropped."""
     projects_dir = tmp_path / "projects"
     sessions_dir = tmp_path / "sessions"
@@ -788,9 +755,7 @@ def test_discover_sessions_excludes_empty_historical(
     assert "empty-sess" not in session_ids
 
 
-def test_discover_sessions_finds_away_summary_far_from_eof(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_finds_away_summary_far_from_eof(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """away_summary is found even when followed by many KB of additional content.
 
     Previously the implementation only scanned the last 8KB; sessions that were
@@ -805,8 +770,7 @@ def test_discover_sessions_finds_away_summary_far_from_eof(
     # Build a session with away_summary early, followed by ~50KB of additional entries
     large_text = "x" * 1000
     padding_entries = [
-        {**USER_ENTRY, "uuid": f"u-pad-{i}", "message": {"role": "user", "content": large_text}}
-        for i in range(50)
+        {**USER_ENTRY, "uuid": f"u-pad-{i}", "message": {"role": "user", "content": large_text}} for i in range(50)
     ]
     _write_jsonl(
         proj / "long-sess.jsonl",
@@ -820,9 +784,7 @@ def test_discover_sessions_finds_away_summary_far_from_eof(
     assert sessions[0].session_summary == "Working on a Python MCP server. Next: add tests."
 
 
-def test_discover_sessions_picks_latest_away_summary(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_picks_latest_away_summary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """When a session has been backgrounded multiple times, the most recent summary wins."""
     projects_dir = tmp_path / "projects"
     sessions_dir = tmp_path / "sessions"
@@ -830,10 +792,8 @@ def test_discover_sessions_picks_latest_away_summary(
     proj.mkdir(parents=True)
     sessions_dir.mkdir()
 
-    earlier_summary = {**AWAY_SUMMARY_ENTRY, "uuid": "sys-old",
-                       "content": "Earlier summary."}
-    later_summary = {**AWAY_SUMMARY_ENTRY, "uuid": "sys-new",
-                     "content": "Latest summary."}
+    earlier_summary = {**AWAY_SUMMARY_ENTRY, "uuid": "sys-old", "content": "Earlier summary."}
+    later_summary = {**AWAY_SUMMARY_ENTRY, "uuid": "sys-new", "content": "Latest summary."}
     _write_jsonl(
         proj / "multi-sess.jsonl",
         [USER_ENTRY, earlier_summary, ASSISTANT_ENTRY, later_summary],
@@ -845,9 +805,7 @@ def test_discover_sessions_picks_latest_away_summary(
     assert sessions[0].session_summary == "Latest summary."
 
 
-def test_discover_sessions_keeps_empty_active(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_discover_sessions_keeps_empty_active(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Active sessions are kept even when they have no first_prompt or summary."""
     projects_dir = tmp_path / "projects"
     sessions_dir = tmp_path / "sessions"

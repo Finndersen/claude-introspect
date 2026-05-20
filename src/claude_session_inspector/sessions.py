@@ -67,9 +67,7 @@ def _extract_text_from_content(content: str | list) -> str:
     if isinstance(content, str):
         return content
     return "\n".join(
-        block.get("text", "")
-        for block in content
-        if isinstance(block, dict) and block.get("type") == "text"
+        block.get("text", "") for block in content if isinstance(block, dict) and block.get("type") == "text"
     )
 
 
@@ -103,11 +101,7 @@ def parse_message(entry: dict, skip_sidechain: bool = True) -> SessionMessage | 
 
         text = _extract_text_from_content(content_raw)
         tool_results = (
-            [
-                block
-                for block in content_raw
-                if isinstance(block, dict) and block.get("type") == "tool_result"
-            ]
+            [block for block in content_raw if isinstance(block, dict) and block.get("type") == "tool_result"]
             if isinstance(content_raw, list)
             else []
         )
@@ -150,9 +144,7 @@ def parse_message(entry: dict, skip_sidechain: bool = True) -> SessionMessage | 
         )
 
 
-def load_session(
-    session_file: Path, skip_sidechain: bool = True
-) -> list[SessionMessage]:
+def load_session(session_file: Path, skip_sidechain: bool = True) -> list[SessionMessage]:
     """Load all messages from a session JSONL file, skipping malformed lines."""
     if not session_file.exists():
         raise FileNotFoundError(f"Session file not found: {session_file}")
@@ -269,8 +261,10 @@ def _read_session_details(session_file: Path) -> _SessionDetails:
                     if git_branch is None and entry.get("gitBranch"):
                         git_branch = entry.get("gitBranch")
 
-                    if not first_prompt and entry.get("type") == "user" and not (
-                        entry.get("isMeta") or entry.get("isCompactSummary")
+                    if (
+                        not first_prompt
+                        and entry.get("type") == "user"
+                        and not (entry.get("isMeta") or entry.get("isCompactSummary"))
                     ):
                         content_raw = entry.get("message", {}).get("content", "")
                         text = _extract_text_from_content(content_raw)[:200]
@@ -433,20 +427,22 @@ def discover_sessions(
         active_info = active_map.get(c.session_file.stem)
         if active_info is None and not details.first_prompt and details.session_summary is None:
             continue
-        results.append(SessionInfo(
-            session_id=c.session_file.stem,
-            project_dir=c.project_dir,
-            file_path=c.session_file,
-            first_prompt=details.first_prompt,
-            first_timestamp=details.first_timestamp,
-            last_timestamp=datetime.fromtimestamp(c.mtime, tz=timezone.utc),
-            git_branch=details.git_branch,
-            cwd=details.cwd,
-            file_size_bytes=c.file_size_bytes,
-            event_count=details.event_count,
-            session_summary=details.session_summary,
-            active=active_info,
-        ))
+        results.append(
+            SessionInfo(
+                session_id=c.session_file.stem,
+                project_dir=c.project_dir,
+                file_path=c.session_file,
+                first_prompt=details.first_prompt,
+                first_timestamp=details.first_timestamp,
+                last_timestamp=datetime.fromtimestamp(c.mtime, tz=timezone.utc),
+                git_branch=details.git_branch,
+                cwd=details.cwd,
+                file_size_bytes=c.file_size_bytes,
+                event_count=details.event_count,
+                session_summary=details.session_summary,
+                active=active_info,
+            )
+        )
 
     return results, total_historical
 

@@ -1,12 +1,11 @@
 """Tests for the formatting module."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 
 from claude_session_inspector.formatting import format_conversation
 from claude_session_inspector.sessions import AssistantMessage, UserMessage
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -124,9 +123,7 @@ def test_format_conversation_with_assistant_tool_calls(user_msg_1, assistant_msg
 # ---------------------------------------------------------------------------
 
 
-def test_format_conversation_start_index_negative(
-    user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2
-):
+def test_format_conversation_start_index_negative(user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2):
     """start_index=-2 should return the last 2 messages."""
     messages = [user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2]
     result = format_conversation(messages, "sess-abc", "MyProject", "main", start_index=-2)
@@ -160,9 +157,7 @@ def test_format_conversation_end_index(user_msg_1, assistant_msg_1, user_msg_2, 
     assert "Message count: 2" in result
 
 
-def test_format_conversation_negative_start_index(
-    user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2
-):
+def test_format_conversation_negative_start_index(user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2):
     """start_index=-1 should return only the last message."""
     messages = [user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2]
     result = format_conversation(messages, "sess-abc", "MyProject", "main", start_index=-1)
@@ -174,9 +169,7 @@ def test_format_conversation_negative_start_index(
     assert "Message count: 1" in result
 
 
-def test_format_conversation_negative_end_index(
-    user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2
-):
+def test_format_conversation_negative_end_index(user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2):
     """end_index=-1 should exclude the last message."""
     messages = [user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2]
     result = format_conversation(messages, "sess-abc", "MyProject", "main", end_index=-1)
@@ -191,9 +184,7 @@ def test_format_conversation_negative_end_index(
 def test_format_conversation_start_and_end(user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2):
     """start_index=1, end_index=3 should return messages at index 1 and 2."""
     messages = [user_msg_1, assistant_msg_1, user_msg_2, assistant_msg_2]
-    result = format_conversation(
-        messages, "sess-abc", "MyProject", "main", start_index=1, end_index=3
-    )
+    result = format_conversation(messages, "sess-abc", "MyProject", "main", start_index=1, end_index=3)
 
     assert "Python is a popular" in result
     assert "Can you show me the file?" in result
@@ -235,9 +226,7 @@ def test_format_conversation_tool_results_included_by_default(user_msg_2):
 
 def test_format_conversation_tool_results_content_excluded_when_length_zero(user_msg_2):
     messages = [user_msg_2]
-    result = format_conversation(
-        messages, "sess-abc", "MyProject", "main", tool_content_length=0
-    )
+    result = format_conversation(messages, "sess-abc", "MyProject", "main", tool_content_length=0)
 
     assert "Can you show me the file?" in result
     assert "[ToolResult:" in result
@@ -246,9 +235,7 @@ def test_format_conversation_tool_results_content_excluded_when_length_zero(user
 
 def test_format_conversation_tool_results_truncated(user_msg_2):
     messages = [user_msg_2]
-    result = format_conversation(
-        messages, "sess-abc", "MyProject", "main", tool_content_length=50
-    )
+    result = format_conversation(messages, "sess-abc", "MyProject", "main", tool_content_length=50)
 
     assert "[ToolResult:" in result
     assert "..." in result

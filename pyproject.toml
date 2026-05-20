@@ -14,5 +14,17 @@ dependencies = [
 [project.scripts]
 claude-introspect = "claude_session_inspector.server:main"
 
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/claude_session_inspector"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]

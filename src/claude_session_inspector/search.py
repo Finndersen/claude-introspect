@@ -68,9 +68,7 @@ def search_sessions(
             text=True,
         )
     except FileNotFoundError as err:
-        raise RuntimeError(
-            "ripgrep (rg) is not installed. Please install ripgrep to use search_sessions."
-        ) from err
+        raise RuntimeError("ripgrep (rg) is not installed. Please install ripgrep to use search_sessions.") from err
 
     if result.returncode not in (0, 1):
         raise RuntimeError(f"ripgrep error: {result.stderr}")
