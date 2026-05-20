@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "claude-introspect",
-      "source": ".",
+      "source": "./",
       "description": "Discover and extract context from past Claude Code sessions — list, search, view, and ask questions across your conversation history."
     }
   ]
