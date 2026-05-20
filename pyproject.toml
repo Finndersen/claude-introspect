@@ -3,16 +3,16 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "claude-session-inspector"
+name = "claude-introspect"
 version = "0.1.0"
-description = "MCP server that provides visibility and inspection of all Claude Code sessions"
+description = "MCP server for introspecting Claude Code session history — browse, search, read, and query past conversations"
 requires-python = ">=3.11"
 dependencies = [
     "mcp[cli]",
 ]
 
 [project.scripts]
-claude-session-inspector = "claude_session_inspector.server:main"
+claude-introspect = "claude_session_inspector.server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claude_session_inspector"]

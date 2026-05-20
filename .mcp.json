@@ -1,0 +1,11 @@
+{
+  "claude-introspect": {
+    "command": "uv",
+    "args": [
+      "run",
+      "--directory",
+      "${CLAUDE_PLUGIN_ROOT}",
+      "claude-introspect"
+    ]
+  }
+}

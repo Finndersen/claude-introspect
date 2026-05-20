@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from claude_session_inspector.sessions import (
+    _normalize_path_filter,
     get_session_metadata,
     get_sessions_dir,
-    resolve_project_name,
 )
 
 
@@ -17,23 +17,27 @@ class SearchMatch:
     """A session matching a search query."""
 
     session_id: str
-    project_name: str
+    working_dir: str | None
     match_count: int
     snippets: list[str]
     first_prompt: str
+    session_summary: str | None = None
 
 
 def search_sessions(
     query: str,
     project: str | None = None,
     max_results: int = 10,
+    use_regex: bool = False,
 ) -> list[SearchMatch]:
     """Search across Claude Code sessions for a text string using ripgrep.
 
     Args:
         query: Search string to find across sessions.
-        project: Optional project name filter (case-insensitive substring match).
+        project: Optional working directory filter (case-insensitive substring match).
         max_results: Maximum number of matching sessions to return.
+        use_regex: If False (default), use fixed-string matching (--fixed-strings flag).
+                   If True, enable Rust regex syntax (omits --fixed-strings).
 
     Returns:
         List of SearchMatch objects sorted by match count descending, limited to max_results.
@@ -46,31 +50,17 @@ def search_sessions(
     if not sessions_dir.exists():
         return []
 
-    search_dir = sessions_dir
-
-    if project:
-        project_dirs = [
-            d
-            for d in sessions_dir.iterdir()
-            if d.is_dir() and project.lower() in resolve_project_name(d.name).lower()
-        ]
-
-        if not project_dirs:
-            return []
-
-        if len(project_dirs) == 1:
-            search_dir = project_dirs[0]
-        # else: search_dir remains sessions_dir; post-filter by project dir below
-
     try:
-        cmd = [
-            "rg",
-            "--json",
-            "--fixed-strings",
-            "--glob",
-            "*.jsonl",
+        normalized = _normalize_path_filter(project) if project else None
+        glob_pattern = f"*{normalized}*/*.jsonl" if normalized else "*/*.jsonl"
+        cmd = ["rg", "--json"]
+        if not use_regex:
+            cmd.append("--fixed-strings")
+        cmd += [
+            "--iglob",
+            glob_pattern,
             query,
-            str(search_dir),
+            str(sessions_dir),
         ]
         result = subprocess.run(
             cmd,
@@ -123,9 +113,6 @@ def search_sessions(
         session_id = file_path.stem
         project_dir = file_path.parent.name
 
-        if project and project.lower() not in resolve_project_name(project_dir).lower():
-            continue
-
         metadata = get_session_metadata(file_path, project_dir)
         if metadata is None:
             continue
@@ -135,10 +122,11 @@ def search_sessions(
         search_results.append(
             SearchMatch(
                 session_id=session_id,
-                project_name=metadata.project_name,
+                working_dir=metadata.cwd,
                 match_count=len(snippets),
                 snippets=truncated_snippets,
                 first_prompt=metadata.first_prompt,
+                session_summary=metadata.session_summary,
             )
         )
 

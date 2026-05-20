@@ -77,7 +77,6 @@ def test_search_sessions_successful_search(mock_rg_json_output):
             mock_metadata.side_effect = [
                 SessionInfo(
                     session_id="session1",
-                    project_name="TestProject",
                     project_dir="-Users-test-projects-TestProject",
                     file_path=Path("/path/to/session1.jsonl"),
                     first_prompt="First prompt",
@@ -85,12 +84,11 @@ def test_search_sessions_successful_search(mock_rg_json_output):
                     last_timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc),
                     git_branch="main",
                     cwd="/path/to/project",
-                    user_message_count=5,
-                    assistant_message_count=4,
+                    file_size_bytes=4096,
+                    event_count=4,
                 ),
                 SessionInfo(
                     session_id="session2",
-                    project_name="TestProject",
                     project_dir="-Users-test-projects-TestProject",
                     file_path=Path("/path/to/session2.jsonl"),
                     first_prompt="Another prompt",
@@ -98,8 +96,8 @@ def test_search_sessions_successful_search(mock_rg_json_output):
                     last_timestamp=datetime(2026, 5, 15, 10, 0, tzinfo=timezone.utc),
                     git_branch="dev",
                     cwd="/path/to/project",
-                    user_message_count=3,
-                    assistant_message_count=2,
+                    file_size_bytes=2048,
+                    event_count=2,
                 ),
             ]
 
@@ -109,7 +107,7 @@ def test_search_sessions_successful_search(mock_rg_json_output):
             assert len(result) == 2
             assert result[0].session_id == "session1"
             assert result[0].match_count == 2
-            assert result[0].project_name == "TestProject"
+            assert result[0].working_dir == "/path/to/project"
             assert len(result[0].snippets) == 2
             assert result[1].session_id == "session2"
             assert result[1].match_count == 1
@@ -135,7 +133,6 @@ def test_search_sessions_sorted_by_match_count():
             mock_metadata.side_effect = [
                 SessionInfo(
                     session_id="a",
-                    project_name="P",
                     project_dir="-Users-test-projects-P",
                     file_path=Path("/path/a.jsonl"),
                     first_prompt="",
@@ -143,12 +140,11 @@ def test_search_sessions_sorted_by_match_count():
                     last_timestamp=None,
                     git_branch=None,
                     cwd=None,
-                    user_message_count=0,
-                    assistant_message_count=0,
+                    file_size_bytes=1024,
+                    event_count=1,
                 ),
                 SessionInfo(
                     session_id="b",
-                    project_name="P",
                     project_dir="-Users-test-projects-P",
                     file_path=Path("/path/b.jsonl"),
                     first_prompt="",
@@ -156,8 +152,8 @@ def test_search_sessions_sorted_by_match_count():
                     last_timestamp=None,
                     git_branch=None,
                     cwd=None,
-                    user_message_count=0,
-                    assistant_message_count=0,
+                    file_size_bytes=1024,
+                    event_count=1,
                 ),
             ]
 
@@ -188,7 +184,6 @@ def test_search_sessions_snippet_truncation():
 
             mock_metadata.return_value = SessionInfo(
                 session_id="s",
-                project_name="P",
                 project_dir="-Users-test-projects-P",
                 file_path=Path("/path/session.jsonl"),
                 first_prompt="",
@@ -196,8 +191,8 @@ def test_search_sessions_snippet_truncation():
                 last_timestamp=None,
                 git_branch=None,
                 cwd=None,
-                user_message_count=0,
-                assistant_message_count=0,
+                file_size_bytes=1024,
+                event_count=1,
             )
 
             with patch("pathlib.Path.exists", return_value=True):
@@ -229,7 +224,6 @@ def test_search_sessions_max_results():
             mock_metadata.side_effect = [
                 SessionInfo(
                     session_id=f"s{i}",
-                    project_name="P",
                     project_dir="-Users-test-projects-P",
                     file_path=Path(f"/path/s{i}.jsonl"),
                     first_prompt="",
@@ -237,8 +231,8 @@ def test_search_sessions_max_results():
                     last_timestamp=None,
                     git_branch=None,
                     cwd=None,
-                    user_message_count=0,
-                    assistant_message_count=0,
+                    file_size_bytes=1024,
+                    event_count=1,
                 )
                 for i in range(15)
             ]
@@ -270,7 +264,6 @@ def test_search_sessions_max_snippets():
 
             mock_metadata.return_value = SessionInfo(
                 session_id="s",
-                project_name="P",
                 project_dir="-Users-test-projects-P",
                 file_path=Path("/path/session.jsonl"),
                 first_prompt="",
@@ -278,8 +271,8 @@ def test_search_sessions_max_snippets():
                 last_timestamp=None,
                 git_branch=None,
                 cwd=None,
-                user_message_count=0,
-                assistant_message_count=0,
+                file_size_bytes=1024,
+                event_count=1,
             )
 
             with patch("pathlib.Path.exists", return_value=True):
@@ -307,8 +300,8 @@ def test_search_sessions_rg_command_format():
             assert "--json" in args
             assert "--fixed-strings" in args
             assert "--max-count" not in args
-            assert "--glob" in args
-            assert "*.jsonl" in args
+            assert "--iglob" in args
+            assert "*/*.jsonl" in args
             assert "test query" in args
             assert str(Path("/sessions")) in args
 
