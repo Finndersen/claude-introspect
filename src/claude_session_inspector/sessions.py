@@ -268,7 +268,7 @@ def _read_session_details(session_file: Path) -> _SessionDetails:
                     ):
                         content_raw = entry.get("message", {}).get("content", "")
                         text = _extract_text_from_content(content_raw)[:200]
-                        if not text.lstrip().startswith("<command-name>"):
+                        if not text.lstrip().startswith(("<command-name>", "<local-command")):
                             first_prompt = text
                             try:
                                 ts_raw = entry.get("timestamp", "")

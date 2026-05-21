@@ -358,6 +358,23 @@ def test_get_session_metadata_all_commands_returns_empty_prompt(tmp_path: Path):
     assert info.first_prompt == ""
 
 
+def test_get_session_metadata_skips_local_command_stdout_for_first_prompt(tmp_path: Path):
+    """local-command-stdout messages (e.g. /model output) should be skipped."""
+    local_cmd_entry = {
+        **COMMAND_ENTRY,
+        "uuid": "u-local-cmd",
+        "message": {
+            "role": "user",
+            "content": "<local-command-stdout>Set model to Opus 4.7 for this session</local-command-stdout>",
+        },
+    }
+    session_file = tmp_path / "sess-local-cmd.jsonl"
+    _write_jsonl(session_file, [local_cmd_entry, USER_ENTRY])
+    info = get_session_metadata(session_file, "-Users-test-projects-Foo")
+    assert info is not None
+    assert info.first_prompt == "Hello, Claude!"
+
+
 def test_get_session_metadata_away_summary(tmp_path: Path):
     """session_summary should be extracted from away_summary system entry."""
     session_file = tmp_path / "sess-summary.jsonl"
