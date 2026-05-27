@@ -191,10 +191,11 @@ def search_sessions(
         str,
         Field(
             description=(
-                "String or pattern to search for across all session content. Use concrete "
-                "identifiers likely to appear verbatim — e.g. 'AuthMiddleware', 'migration 0042', "
-                "'TypeError: cannot read'. Treated as a fixed string by default (safe for natural "
-                "language, function names, error messages). Set use_regex=True for patterns."
+                "String or pattern to search for across all session content. "
+                "Treated as a fixed string by default — the query must appear verbatim in session content. "
+                "Do NOT pass multiple space-separated keywords expecting independent matches — "
+                "that searches for the exact multi-word phrase. "
+                "To match multiple distinct terms in one call, set use_regex=True and join them with '|'."
             )
         ),
     ],
@@ -217,7 +218,8 @@ def search_sessions(
         Field(
             description=(
                 "If False (default), treat query as a fixed string. If True, enable Rust regex "
-                "syntax for patterns like `initializ(e|ation)` or case-insensitive flags (`(?i)search`)."
+                "syntax — use `term1|term2|term3` to match any of several distinct terms, "
+                "`initializ(e|ation)` for word variants, or `(?i)search` for case-insensitive matching."
             )
         ),
     ] = False,
