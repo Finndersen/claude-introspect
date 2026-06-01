@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from claude_session_inspector.search import SearchMatch
 from claude_session_inspector.server import (
+    get_session_details,
     list_sessions,
     search_sessions,
     view_session_messages,
@@ -733,6 +734,88 @@ def test_view_session_messages_start_end_index():
         call_args = mock_format.call_args
         assert call_args[1]["start_index"] == 1
         assert call_args[1]["end_index"] == 3
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# get_session_details tests
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_get_session_details_not_found():
+    """Returns an error string when the session ID is not found."""
+    with patch("claude_session_inspector.server.get_session_info", return_value=None):
+        result = get_session_details("missing-id")
+        assert "Error: Session 'missing-id' not found." == result
+
+
+def test_get_session_details_idle_session():
+    """Returns correct metadata block for an idle session."""
+    session = mock_session(
+        session_id="abc123",
+        cwd="/path/to/project",
+        git_branch="main",
+        file_size_bytes=102400,
+        event_count=200,
+        first_prompt="Help me refactor this",
+        session_summary="Refactored the auth module.",
+        last_assistant_snippet="All done, tests pass.",
+        active=None,
+    )
+    with patch("claude_session_inspector.server.get_session_info", return_value=session):
+        result = get_session_details("abc123")
+        assert "Session: abc123" in result
+        assert "Status: idle" in result
+        assert "Working dir: /path/to/project" in result
+        assert "Branch: main" in result
+        assert "Size: 100.0 KB" in result
+        assert "Events: 200" in result
+        assert "First prompt: Help me refactor this" in result
+        assert "Session summary: Refactored the auth module." in result
+        assert "Last response: All done, tests pass." in result
+        assert "Last active:" in result
+        assert "Started:" in result
+
+
+def test_get_session_details_active_session():
+    """Active status is shown with name, pid, status, and waiting_for."""
+    active = mock_active_info(name="my-agent", status="busy", pid=9999, waiting_for="approve tool")
+    session = mock_session(session_id="live-id", active=active)
+    with patch("claude_session_inspector.server.get_session_info", return_value=session):
+        result = get_session_details("live-id")
+        assert "Status: active" in result
+        assert "name: my-agent" in result
+        assert "pid: 9999" in result
+        assert "status: busy" in result
+        assert "waiting_for: approve tool" in result
+
+
+def test_get_session_details_active_no_name_no_waiting():
+    """Active session without name or waiting_for omits those parts cleanly."""
+    active = mock_active_info(name=None, status="idle", pid=1234, waiting_for=None)
+    session = mock_session(session_id="no-name-id", active=active)
+    with patch("claude_session_inspector.server.get_session_info", return_value=session):
+        result = get_session_details("no-name-id")
+        assert "Status: active" in result
+        assert "pid: 1234" in result
+        assert "name:" not in result
+        assert "waiting_for:" not in result
+
+
+def test_get_session_details_no_summary_or_response():
+    """Session summary and last response lines are omitted when absent."""
+    session = mock_session(session_id="bare-id", session_summary=None, last_assistant_snippet=None)
+    with patch("claude_session_inspector.server.get_session_info", return_value=session):
+        result = get_session_details("bare-id")
+        assert "Session summary:" not in result
+        assert "Last response:" not in result
+
+
+def test_get_session_details_empty_prompt():
+    """Empty first_prompt renders as '(empty)'."""
+    session = mock_session(session_id="empty-id", first_prompt="")
+    with patch("claude_session_inspector.server.get_session_info", return_value=session):
+        result = get_session_details("empty-id")
+        assert "First prompt: (empty)" in result
 
 
 def test_view_session_messages_negative_index():

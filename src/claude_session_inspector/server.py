@@ -15,6 +15,7 @@ from claude_session_inspector.sessions import (
     UserMessage,
     discover_sessions,
     find_session_file,
+    get_session_info,
     load_session,
 )
 
@@ -249,6 +250,60 @@ def search_sessions(
     separator = "\n" + "─" * 34 + "\n"
 
     return header + separator + separator.join(blocks) + "\n" + "─" * 34
+
+
+@mcp.tool()
+def get_session_details(
+    session_id: Annotated[
+        str,
+        Field(
+            description=(
+                "Session UUID to look up. Must be a real UUID — "
+                "call list_sessions or search_sessions first if you don't already have one."
+            )
+        ),
+    ],
+) -> str:
+    """Return metadata for a single Claude Code session by ID.
+
+    Returns key details including size_kb, event_count, first_prompt,
+    session_summary, last_response, and active status. Useful when a
+    session_id is known but its metadata has not already been retrieved
+    via list_sessions or search_sessions — call this first to check size
+    and event_count before deciding how to load the messages (e.g.
+    whether to set tool_content_length=0 for large sessions).
+    """
+    info = get_session_info(session_id)
+    if info is None:
+        return f"Error: Session '{session_id}' not found."
+
+    working_dir, branch, last_active, started, size_kb, prompt, summary, last_response = _format_session_row_common(info)
+
+    if info.active is not None:
+        a = info.active
+        waiting = f", waiting_for: {a.waiting_for}" if a.waiting_for else ""
+        name_part = f"name: {a.name}, " if a.name else ""
+        status_line = f"active ({name_part}pid: {a.pid}, status: {a.status}{waiting})"
+    else:
+        status_line = "idle"
+
+    lines = [
+        f"Session: {session_id}",
+        f"Status: {status_line}",
+        f"Working dir: {working_dir}",
+        f"Branch: {branch}",
+        f"Last active: {last_active}",
+        f"Started: {started}",
+        f"Size: {size_kb} KB",
+        f"Events: {info.event_count}",
+        f"First prompt: {prompt or '(empty)'}",
+    ]
+    if summary:
+        lines.append(f"Session summary: {summary}")
+    if last_response:
+        lines.append(f"Last response: {last_response}")
+
+    return "\n".join(lines)
 
 
 @mcp.tool()

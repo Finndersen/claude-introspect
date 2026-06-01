@@ -487,3 +487,16 @@ def find_session_file(session_id: str) -> Path | None:
         return None
     matches = list(sessions_dir.glob(f"*/{session_id}.jsonl"))
     return matches[0] if matches else None
+
+
+def get_session_info(session_id: str) -> SessionInfo | None:
+    """Return full metadata for a single session by ID, including active status."""
+    session_file = find_session_file(session_id)
+    if session_file is None:
+        return None
+    info = get_session_metadata(session_file, session_file.parent.name)
+    if info is None:
+        return None
+    active_map = _load_active_sessions()
+    info.active = active_map.get(session_id)
+    return info

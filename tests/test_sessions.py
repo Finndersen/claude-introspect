@@ -14,6 +14,7 @@ from claude_session_inspector.sessions import (
     _normalize_path_filter,
     discover_sessions,
     find_session_file,
+    get_session_info,
     get_session_metadata,
     is_message_entry,
     load_session,
@@ -930,3 +931,54 @@ def test_discover_sessions_keeps_empty_active(tmp_path: Path, monkeypatch: pytes
     assert sessions[0].session_id == "active-empty"
     assert sessions[0].active is not None
     assert sessions[0].first_prompt == ""
+
+
+# ---------------------------------------------------------------------------
+# get_session_info
+# ---------------------------------------------------------------------------
+
+
+def test_get_session_info_not_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Returns None when session ID does not exist on disk."""
+    (tmp_path / "projects").mkdir()
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
+    assert get_session_info("nonexistent-id") is None
+
+
+def test_get_session_info_idle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Returns correct SessionInfo with active=None for a historical session."""
+    projects_dir = tmp_path / "projects"
+    proj = projects_dir / "-Users-test-projects-MyProj"
+    proj.mkdir(parents=True)
+    (tmp_path / "sessions").mkdir()
+    _write_jsonl(proj / "sess-abc.jsonl", [USER_ENTRY, ASSISTANT_ENTRY])
+
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
+
+    info = get_session_info("sess-abc")
+    assert info is not None
+    assert info.session_id == "sess-abc"
+    assert info.active is None
+    assert info.first_prompt == "Hello, Claude!"
+    assert info.git_branch == "main"
+
+
+def test_get_session_info_active(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Returns SessionInfo with active populated for a running session."""
+    projects_dir = tmp_path / "projects"
+    sessions_dir = tmp_path / "sessions"
+    proj = projects_dir / "-Users-test-projects-MyProj"
+    proj.mkdir(parents=True)
+    sessions_dir.mkdir()
+
+    _write_jsonl(proj / "sess-live.jsonl", [USER_ENTRY, ASSISTANT_ENTRY])
+    active_data = {**ACTIVE_SESSION_JSON, "sessionId": "sess-live", "pid": 42}
+    _write_active_json(sessions_dir / "42.json", active_data)
+
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(tmp_path))
+
+    info = get_session_info("sess-live")
+    assert info is not None
+    assert info.active is not None
+    assert info.active.pid == 42
+    assert info.active.name == "fix-auth-bug"
