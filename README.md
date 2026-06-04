@@ -120,6 +120,18 @@ Requires `rg` (ripgrep).
 
 ---
 
+### `get_session_details`
+
+Return metadata for a single session by ID — the same fields shown in `list_sessions` rows. Useful when a session ID is already known (e.g. passed in by the user or a parent agent) but its metadata hasn't been retrieved yet, so you can check `size_kb` and `event_count` before deciding how to load the messages.
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `session_id` | string | — | Session UUID to look up |
+
+Returns: `session_id`, `status` (active or idle), `working_dir`, `branch`, `last_active`, `started`, `size_kb`, `event_count`, `first_prompt`, and optionally `session_summary` and `last_response`.
+
+---
+
 ### `view_session_messages`
 
 Read the conversation transcript of a specific session. Supports Python-style index slicing. Always shows user and assistant messages, tool calls, and tool results; use `tool_content_length` to control how much tool input/result content is included.
