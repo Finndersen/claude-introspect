@@ -13,6 +13,15 @@ from claude_session_inspector.sessions import (
 )
 
 
+# JSONL attachment/content types that are infrastructure noise, not conversation content.
+# deferred_tools_delta: tool availability announcements injected as system attachments.
+# tool_reference: tool schema references in tool_result content blocks.
+_EXCLUDED_LINE_PATTERNS: tuple[str, ...] = (
+    '"deferred_tools_delta"',
+    '"tool_reference"',
+)
+
+
 @dataclass
 class SearchMatch:
     """A session matching a search query."""
@@ -104,6 +113,9 @@ def search_sessions(
         match_text = entry.get("data", {}).get("lines", {}).get("text", "")
 
         if not file_path or not match_text:
+            continue
+
+        if any(p in match_text for p in _EXCLUDED_LINE_PATTERNS):
             continue
 
         if file_path not in matches_by_file:

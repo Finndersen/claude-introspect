@@ -359,6 +359,102 @@ def test_search_sessions_empty_sessions_dir():
             assert result == []
 
 
+def test_search_sessions_excludes_deferred_tools_delta():
+    """Matching lines containing 'deferred_tools_delta' must not be counted as matches."""
+    with patch("subprocess.run") as mock_run:
+        with patch("claude_session_inspector.search.get_session_metadata") as mock_metadata:
+            rg_output = (
+                json.dumps(
+                    {
+                        "type": "match",
+                        "data": {
+                            "path": {"text": "./proj/session.jsonl"},
+                            "lines": {"text": '...contains "deferred_tools_delta"...'},
+                            "line_number": 1,
+                            "absolute_offset": 0,
+                            "submatches": [],
+                        },
+                    }
+                )
+                + "\n"
+            )
+
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = rg_output
+            mock_run.return_value.stderr = ""
+
+            from datetime import datetime, timezone
+
+            from claude_session_inspector.sessions import SessionInfo
+
+            mock_metadata.return_value = SessionInfo(
+                session_id="session",
+                project_dir="proj",
+                file_path=Path("./proj/session.jsonl"),
+                first_prompt="Some prompt",
+                first_timestamp=datetime(2026, 5, 16, tzinfo=timezone.utc),
+                last_timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc),
+                git_branch="main",
+                cwd="/path/to/project",
+                file_size_bytes=4096,
+                event_count=4,
+            )
+
+            with patch("pathlib.Path.exists", return_value=True):
+                result = search_sessions("deferred_tools_delta")
+
+            assert result == []
+            mock_metadata.assert_not_called()
+
+
+def test_search_sessions_excludes_tool_reference():
+    """Matching lines containing 'tool_reference' must not be counted as matches."""
+    with patch("subprocess.run") as mock_run:
+        with patch("claude_session_inspector.search.get_session_metadata") as mock_metadata:
+            rg_output = (
+                json.dumps(
+                    {
+                        "type": "match",
+                        "data": {
+                            "path": {"text": "./proj/session.jsonl"},
+                            "lines": {"text": '...contains "tool_reference"...'},
+                            "line_number": 1,
+                            "absolute_offset": 0,
+                            "submatches": [],
+                        },
+                    }
+                )
+                + "\n"
+            )
+
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = rg_output
+            mock_run.return_value.stderr = ""
+
+            from datetime import datetime, timezone
+
+            from claude_session_inspector.sessions import SessionInfo
+
+            mock_metadata.return_value = SessionInfo(
+                session_id="session",
+                project_dir="proj",
+                file_path=Path("./proj/session.jsonl"),
+                first_prompt="Some prompt",
+                first_timestamp=datetime(2026, 5, 16, tzinfo=timezone.utc),
+                last_timestamp=datetime(2026, 5, 16, 10, 0, tzinfo=timezone.utc),
+                git_branch="main",
+                cwd="/path/to/project",
+                file_size_bytes=4096,
+                event_count=4,
+            )
+
+            with patch("pathlib.Path.exists", return_value=True):
+                result = search_sessions("tool_reference")
+
+            assert result == []
+            mock_metadata.assert_not_called()
+
+
 def test_search_sessions_metadata_called_only_for_top_results():
     """Metadata should be fetched for at most max_results files even when more match."""
     from unittest.mock import Mock
