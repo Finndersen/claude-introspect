@@ -343,8 +343,11 @@ def test_search_sessions_rg_command_format():
             assert "--max-count" not in args
             assert "--iglob" in args
             assert "*/*.jsonl" in args
+            assert "--max-depth" not in args
             assert "test query" in args
-            assert str(Path("/sessions")) in args
+            assert "." in args
+            kwargs = mock_run.call_args[1]
+            assert kwargs.get("cwd") == "/sessions"
 
 
 def test_search_sessions_empty_sessions_dir():

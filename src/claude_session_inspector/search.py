@@ -57,6 +57,11 @@ def search_sessions(
 
     try:
         normalized = _normalize_path_filter(project) if project else None
+        # Use */*.jsonl (one level deep) to match session files but not subagent files
+        # nested at project_dir/session_id/subagents/*.jsonl. Running rg with cwd=sessions_dir
+        # and "." as the search path makes ripgrep apply the glob against relative paths
+        # (e.g. "project_dir/session.jsonl"), which * can match across — unlike absolute paths
+        # where * never crosses a path separator.
         glob_pattern = f"*{normalized}*/*.jsonl" if normalized else "*/*.jsonl"
         cmd = ["rg", "--json"]
         if not use_regex:
@@ -65,12 +70,13 @@ def search_sessions(
             "--iglob",
             glob_pattern,
             query,
-            str(sessions_dir),
+            ".",
         ]
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
+            cwd=str(sessions_dir),
         )
     except FileNotFoundError as err:
         raise RuntimeError("ripgrep (rg) is not installed. Please install ripgrep to use search_sessions.") from err
@@ -113,6 +119,8 @@ def search_sessions(
 
     for file_path_str, snippets in top_candidates:
         file_path = Path(file_path_str)
+        if not file_path.is_absolute():
+            file_path = sessions_dir / file_path
 
         if not file_path.exists():
             continue
