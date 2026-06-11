@@ -2,7 +2,7 @@
 
 import json
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -22,6 +22,14 @@ _EXCLUDED_LINE_PATTERNS: tuple[str, ...] = (
 )
 
 _SNIPPET_CONTEXT = 80  # characters to show on each side of a match
+
+
+@dataclass
+class _FileMatches:
+    """Accumulated match data for a single session file."""
+
+    count: int = 0
+    snippets: list[str] = field(default_factory=list)
 
 
 def _windowed_snippet(line: str, match_start: int) -> str:
@@ -61,6 +69,7 @@ def search_sessions(
     project: str | None = None,
     max_results: int = 10,
     use_regex: bool = False,
+    max_snippets: int = 3,
 ) -> list[SearchMatch]:
     """Search across Claude Code sessions for a text string using ripgrep.
 
@@ -114,7 +123,7 @@ def search_sessions(
     if result.returncode == 1:
         return []
 
-    matches_by_file: dict[str, list[str]] = {}
+    matches_by_file: dict[str, _FileMatches] = {}
 
     for line in result.stdout.splitlines():
         if not line.strip():
@@ -136,21 +145,20 @@ def search_sessions(
         if any(p in match_text for p in _EXCLUDED_LINE_PATTERNS):
             continue
 
-        submatches = entry.get("data", {}).get("submatches", [])
-        match_start = submatches[0].get("start", 0) if submatches else 0
-
-        if file_path not in matches_by_file:
-            matches_by_file[file_path] = []
-
-        matches_by_file[file_path].append(_windowed_snippet(match_text, match_start))
+        fm = matches_by_file.setdefault(file_path, _FileMatches())
+        fm.count += 1
+        if len(fm.snippets) < max_snippets:
+            submatches = entry.get("data", {}).get("submatches", [])
+            match_start = submatches[0].get("start", 0) if submatches else 0
+            fm.snippets.append(_windowed_snippet(match_text, match_start))
 
     # Sort by match count descending and slice before opening any files.
-    ranked = sorted(matches_by_file.items(), key=lambda item: len(item[1]), reverse=True)
+    ranked = sorted(matches_by_file.items(), key=lambda item: item[1].count, reverse=True)
     top_candidates = ranked[:max_results]
 
     search_results: list[SearchMatch] = []
 
-    for file_path_str, snippets in top_candidates:
+    for file_path_str, fm in top_candidates:
         file_path = Path(file_path_str)
         if not file_path.is_absolute():
             file_path = sessions_dir / file_path
@@ -165,14 +173,12 @@ def search_sessions(
         if metadata is None:
             continue
 
-        truncated_snippets = snippets[:3]
-
         search_results.append(
             SearchMatch(
                 session_id=session_id,
                 working_dir=metadata.cwd,
-                match_count=len(snippets),
-                snippets=truncated_snippets,
+                match_count=fm.count,
+                snippets=fm.snippets,
                 first_prompt=metadata.first_prompt,
                 session_summary=metadata.session_summary,
                 git_branch=metadata.git_branch,

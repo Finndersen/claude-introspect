@@ -388,21 +388,21 @@ def test_sessions_search_with_project_filter():
     """Test that project filter is passed to _search_sessions_impl."""
     with patch("claude_session_inspector.server._search_sessions_impl", return_value=[]) as mock_search:
         search_sessions("test", project="MyProject")
-        mock_search.assert_called_once_with("test", project="MyProject", max_results=20, use_regex=False)
+        mock_search.assert_called_once_with("test", project="MyProject", max_results=20, use_regex=False, max_snippets=3)
 
 
 def test_sessions_search_with_max_results():
     """Test that max_results parameter is passed."""
     with patch("claude_session_inspector.server._search_sessions_impl", return_value=[]) as mock_search:
         search_sessions("test", max_results=5)
-        mock_search.assert_called_once_with("test", project=None, max_results=5, use_regex=False)
+        mock_search.assert_called_once_with("test", project=None, max_results=5, use_regex=False, max_snippets=3)
 
 
 def test_sessions_search_with_use_regex():
     """Test that use_regex=True is passed through to the impl."""
     with patch("claude_session_inspector.server._search_sessions_impl", return_value=[]) as mock_search:
         search_sessions("initializ(e|ation)", use_regex=True)
-        mock_search.assert_called_once_with("initializ(e|ation)", project=None, max_results=20, use_regex=True)
+        mock_search.assert_called_once_with("initializ(e|ation)", project=None, max_results=20, use_regex=True, max_snippets=3)
 
 
 def test_sessions_search_rg_not_found_error():

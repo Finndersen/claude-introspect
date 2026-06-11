@@ -224,6 +224,10 @@ def search_sessions(
             )
         ),
     ] = False,
+    max_snippets: Annotated[
+        int,
+        Field(description="Maximum number of matching snippets to show per session (default: 3)."),
+    ] = 3,
 ) -> str:
     """Search Claude Code session content for a specific string or pattern using ripgrep.
 
@@ -235,7 +239,7 @@ def search_sessions(
     Searches tool calls too, so a file path as the query finds sessions that touched that file.
     """
     try:
-        matches = _search_sessions_impl(query, project=project, max_results=max_results, use_regex=use_regex)
+        matches = _search_sessions_impl(query, project=project, max_results=max_results, use_regex=use_regex, max_snippets=max_snippets)
     except RuntimeError as err:
         return str(err)
 
