@@ -191,7 +191,11 @@ def test_search_sessions_sorted_by_match_count():
 
 
 def test_search_sessions_snippet_truncation():
-    """Test that snippets are truncated to 150 characters."""
+    """Test that snippets are windowed around the match (not raw-truncated to 150 chars).
+
+    With match_start=0 (no submatches) and a 200-char line, _windowed_snippet returns
+    line[0:80].strip() + "…" — 80 x-chars plus the ellipsis suffix = 81 chars total.
+    """
     long_snippet = "x" * 200
     with patch("subprocess.run") as mock_run:
         with patch("claude_session_inspector.search.get_session_metadata") as mock_metadata:
@@ -228,7 +232,10 @@ def test_search_sessions_snippet_truncation():
                 result = search_sessions("query")
 
             assert len(result) == 1
-            assert len(result[0].snippets[0]) == 150
+            snippet = result[0].snippets[0]
+            # Windowed from position 0: 80 chars of context, suffix ellipsis appended
+            assert snippet == "x" * 80 + "…"
+            assert not snippet.startswith("…")  # no prefix since match_start == 0
 
 
 def test_search_sessions_max_results():
@@ -503,3 +510,63 @@ def test_search_sessions_metadata_called_only_for_top_results():
     assert result[1].match_count == 9
     assert result[2].session_id == "s7"
     assert result[2].match_count == 8
+
+
+def test_search_sessions_windowed_snippet():
+    """Snippet is centred on match when it appears far into a long line.
+
+    When match_start > _SNIPPET_CONTEXT, the snippet should start with '…' (because
+    the window skips the beginning of the line) and contain the matched term.
+    """
+    prefix = "a" * 200
+    match_word = "target"
+    suffix = "b" * 200
+    long_line = prefix + match_word + suffix  # "target" starts at position 200
+
+    with patch("subprocess.run") as mock_run:
+        with patch("claude_session_inspector.search.get_session_metadata") as mock_metadata:
+            rg_output = (
+                json.dumps(
+                    {
+                        "type": "match",
+                        "data": {
+                            "path": {"text": "/path/session.jsonl"},
+                            "lines": {"text": long_line},
+                            "line_number": 1,
+                            "absolute_offset": 0,
+                            "submatches": [
+                                {"match": {"text": "target"}, "start": 200, "end": 206}
+                            ],
+                        },
+                    }
+                )
+                + "\n"
+            )
+
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = rg_output
+            mock_run.return_value.stderr = ""
+
+            from claude_session_inspector.sessions import SessionInfo
+
+            mock_metadata.return_value = SessionInfo(
+                session_id="s",
+                project_dir="-Users-test-projects-P",
+                file_path=Path("/path/session.jsonl"),
+                first_prompt="",
+                first_timestamp=None,
+                last_timestamp=None,
+                git_branch=None,
+                cwd=None,
+                file_size_bytes=1024,
+                event_count=1,
+            )
+
+            with patch("pathlib.Path.exists", return_value=True):
+                result = search_sessions("target")
+
+        assert len(result) == 1
+        snippet = result[0].snippets[0]
+        # The match is deep in the line — snippet must be centred, not from the start
+        assert "target" in snippet
+        assert snippet.startswith("…"), f"Expected snippet to start with '…', got: {snippet!r}"

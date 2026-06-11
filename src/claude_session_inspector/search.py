@@ -21,6 +21,24 @@ _EXCLUDED_LINE_PATTERNS: tuple[str, ...] = (
     '"tool_reference"',
 )
 
+_SNIPPET_CONTEXT = 80  # characters to show on each side of a match
+
+
+def _windowed_snippet(line: str, match_start: int) -> str:
+    """Extract text centred around match_start rather than from the line beginning.
+
+    JSONL lines are full JSON objects — the matched term is often buried hundreds of
+    characters in. Slicing from the start would never show it.
+    """
+    start = max(0, match_start - _SNIPPET_CONTEXT)
+    end = min(len(line), match_start + _SNIPPET_CONTEXT)
+    snippet = line[start:end].strip()
+    if start > 0:
+        snippet = "…" + snippet
+    if end < len(line):
+        snippet = snippet + "…"
+    return snippet
+
 
 @dataclass
 class SearchMatch:
@@ -118,10 +136,13 @@ def search_sessions(
         if any(p in match_text for p in _EXCLUDED_LINE_PATTERNS):
             continue
 
+        submatches = entry.get("data", {}).get("submatches", [])
+        match_start = submatches[0].get("start", 0) if submatches else 0
+
         if file_path not in matches_by_file:
             matches_by_file[file_path] = []
 
-        matches_by_file[file_path].append(match_text)
+        matches_by_file[file_path].append(_windowed_snippet(match_text, match_start))
 
     # Sort by match count descending and slice before opening any files.
     ranked = sorted(matches_by_file.items(), key=lambda item: len(item[1]), reverse=True)
@@ -144,7 +165,7 @@ def search_sessions(
         if metadata is None:
             continue
 
-        truncated_snippets = [s.strip()[:150] for s in snippets[:3]]
+        truncated_snippets = snippets[:3]
 
         search_results.append(
             SearchMatch(
